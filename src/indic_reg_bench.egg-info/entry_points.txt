@@ -1,2 +1,0 @@
-[console_scripts]
-indic-reg-bench = indic_reg_bench.cli:main
