@@ -1,0 +1,12 @@
+# Fetched source documents are NOT redistributed from this repo.
+# Rebuild locally with: python scripts/fetch_orders.py
+data/*.db
+data/pdfs/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
