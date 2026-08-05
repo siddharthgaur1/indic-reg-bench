@@ -20,4 +20,11 @@ assert pdf_url_from_page('<iframe src="../../web/?file=http://x/a%20b.pdf">') ==
 assert pdf_url_from_page("<p>no iframe here</p>") is None
 assert pdf_url_from_page('<iframe src="../../web/viewer.html">') is None  # iframe, no ?file=
 
+# Orders from ~2020 and earlier use a site-relative path, not an absolute URL.
+# Verbatim shape from mar-2020 orders; without resolution requests raises
+# MissingSchema and the whole pre-2020 half of the corpus fails to fetch.
+assert pdf_url_from_page(
+    "<iframe src='../../../web/?file=/sebi_data/attachdocs/mar-2020/1584355053344.pdf'>"
+) == "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2020/1584355053344.pdf"
+
 print("ok")

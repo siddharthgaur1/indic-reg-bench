@@ -18,13 +18,14 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import pdfplumber
 import requests
 
 REPO = Path(__file__).resolve().parent.parent
 LISTING_DB = REPO.parent / "sebi-explorer" / "data" / "sebi_orders.db"
+BASE_URL = "https://www.sebi.gov.in"
 DEFAULT_DB = REPO / "data" / "corpus.db"
 HEADERS = {"User-Agent": "indic-reg-bench/0.1 (research; contact via github.com/siddharthgaur1)"}
 DELAY_S = 1.5  # polite crawl delay
@@ -49,12 +50,18 @@ def init_db(path: Path) -> sqlite3.Connection:
 
 
 def pdf_url_from_page(html: str) -> str | None:
-    """Pull the PDF out of the viewer iframe: <iframe src='../../web/?file=<pdf>'>."""
+    """Pull the PDF out of the viewer iframe: <iframe src='../../web/?file=<pdf>'>.
+
+    Recent orders put an absolute URL in `file=`; orders from around 2020 and
+    earlier put a site-relative path (`/sebi_data/attachdocs/...`), so the result
+    is resolved against the site root either way.
+    """
     m = re.search(r"<iframe[^>]+src=['\"]([^'\"]*\?file=[^'\"]+)['\"]", html, re.I)
     if not m:
         return None
     qs = parse_qs(urlparse(m.group(1)).query)
-    return qs.get("file", [None])[0]
+    pdf = qs.get("file", [None])[0]
+    return urljoin(BASE_URL, pdf) if pdf else None
 
 
 def extract_text(pdf_bytes: bytes) -> tuple[str, int]:
