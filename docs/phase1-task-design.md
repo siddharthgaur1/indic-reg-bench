@@ -1,5 +1,11 @@
 # indic-reg-bench — Phase 1: Task Design
 
+> **Corrected 2026-08-05 by [`corpus-findings.md`](corpus-findings.md) at n=105.** Two claims below are wrong at scale and are superseded there:
+> - §2/§3 "majority class = `15HB`" — **`15HA` dominates** (299 mentions vs 112). Never hard-code the majority class; compute it from the gold set.
+> - §1.3 "first amount differs from operative in 24%" — the rate is **46.7%** on the larger sample, which strengthens the case for T5.
+>
+> The task suite and the cuts are unaffected.
+
 **Status:** proposal for review. Nothing here is a label, a score, or a dataset.
 **Evidence base:** 25 SEBI adjudication orders fetched 2026-08-05, 1,476,418 characters, 1–88 pages (median 21). Every quotation below is verbatim from those PDFs.
 

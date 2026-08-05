@@ -2,7 +2,8 @@
 
 An open benchmark for Indian regulatory document understanding, built on SEBI enforcement orders.
 
-[![tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)](tests/)
+[![tests](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml/badge.svg)](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml)
+[![dataset](https://img.shields.io/badge/%F0%9F%A4%97%20dataset-indic--reg--bench-yellow)](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![status](https://img.shields.io/badge/status-under%20construction-orange)](#status)
 
@@ -14,10 +15,11 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 
 | | |
 |---|---|
-| Listing metadata | ✅ 11,957 orders, Nov 2004 – Jul 2026 |
+| Listing metadata | ✅ 11,957 orders, Nov 2004 – Jul 2026 — [on HuggingFace](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench) |
 | Document fetcher | ✅ working, resumable |
-| Evaluation harness | ✅ pip-installable, 15 tests passing |
+| Evaluation harness | ✅ pip-installable, 15 tests passing in CI |
 | Labelling CLI | ✅ built |
+| Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Gold set | ❌ 0 of a target 400–600 |
 | Baseline scores | ❌ blocked on the gold set |
 
