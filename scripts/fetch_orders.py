@@ -65,17 +65,31 @@ def extract_text(pdf_bytes: bytes) -> tuple[str, int]:
     return "\n\n".join(pages), len(pages)
 
 
-def fetch(db_path: Path, limit: int | None) -> None:
-    if not LISTING_DB.exists():
-        raise SystemExit(f"listing DB not found: {LISTING_DB}")
-
-    listing = sqlite3.connect(LISTING_DB)
-    rows = listing.execute(
-        "SELECT url, order_date, title FROM orders ORDER BY order_date DESC"
-    ).fetchall()
-    listing.close()
-
+def fetch(db_path: Path, limit: int | None, use_fetch_set: bool = False) -> None:
     conn = init_db(db_path)
+
+    # Prefer this repo's own `listing` table (scrape_listing.py); fall back to
+    # the sebi-explorer DB, which is all that existed before it.
+    has_listing = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='listing'").fetchone()
+    if has_listing:
+        has_set = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='fetch_set'").fetchone()
+        if use_fetch_set and has_set:
+            rows = conn.execute(
+                "SELECT l.url, l.order_date, l.title FROM listing l "
+                "JOIN fetch_set f ON f.url = l.url ORDER BY l.order_date DESC").fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT url, order_date, title FROM listing "
+                "WHERE doc_type='adjudication' ORDER BY order_date DESC").fetchall()
+    elif LISTING_DB.exists():
+        listing = sqlite3.connect(LISTING_DB)
+        rows = listing.execute(
+            "SELECT url, order_date, title FROM orders ORDER BY order_date DESC").fetchall()
+        listing.close()
+    else:
+        raise SystemExit("no listing available - run scripts/scrape_listing.py first")
     done = {r[0] for r in conn.execute("SELECT url FROM order_text")}
     todo = [r for r in rows if r[0] not in done][: limit or len(rows)]
     print(f"{len(rows)} listed, {len(done)} already fetched, {len(todo)} to fetch")
@@ -121,5 +135,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", type=Path, default=DEFAULT_DB)
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--fetch-set", action="store_true",
+                    help="fetch only the stratified sample from build_splits.py")
     args = ap.parse_args()
-    fetch(args.db, args.limit)
+    fetch(args.db, args.limit, args.fetch_set)
