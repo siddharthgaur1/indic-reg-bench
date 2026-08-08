@@ -3,6 +3,10 @@
 data/*.db
 data/pdfs/
 
+# Scratch copies of order text written by scripts/label.py for searching.
+# Same reason as above: order text stays local.
+labels/.reading/
+
 __pycache__/
 *.py[cod]
 *.egg-info/
