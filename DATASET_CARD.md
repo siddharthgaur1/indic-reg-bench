@@ -18,18 +18,41 @@ A benchmark for Indian regulatory document understanding, built on SEBI (Securit
 | Component | State |
 |---|---|
 | Listing metadata | 11,957 orders, Nov 2004 – Jul 2026, scraped from sebi.gov.in |
-| Fetched document text | 25 orders (pilot), 1,476,418 chars |
+| Benchmark sample | 2,000 orders, stratified by year, seed 42 |
+| Fetched document text | **1,986 of 2,000 fetched; 2,006 documents total, 69,979,073 chars** |
+| Effective corpus date range | **2008 – 2026** (see note below) |
 | Gold labels | **none — 0 examples** |
 | Silver labels | none |
 | Splits | temporal, defined (train <2023 / test ≥2023); not yet populated |
-| Harness | working, pip-installable, 15 tests passing |
+| Harness | working, pip-installable, 45 tests passing |
 | Baselines | regex floor implemented; **no scores, because scoring needs gold labels** |
+
+**On the date range.** The listing index spans Nov 2004 – Jul 2026, but the
+*corpus* effectively starts in 2008: SEBI's own listing contains only **7
+adjudication orders before 2008** (one in 2004, four in 2005, none in 2006, two
+in 2007), against 90 in 2008 alone. Treat this as a 2008–2026 benchmark. The
+remaining 8 unfetched sample orders are transient connection failures and are
+recoverable by re-running the fetch script.
+
+**Known extraction properties**, measured over the full corpus and documented in
+`docs/corpus-findings.md` — these matter to anyone building against it:
+
+| | |
+|---|---|
+| First currency amount ≠ the operative one | **48.6%** of comparable orders |
+| Orders imposing no monetary penalty | 18.3% |
+| Single-noticee orders with >1 penalty | 13.4% |
+| Rupee sign extracted as U+0060 backtick | 25% of orders; the *only* currency marker in 10.4% |
+| No text layer (scanned PDFs) | 2.4%, concentrated in 2014–2015 |
+| Corrigenda mixed into the adjudication listing | 21 orders |
 
 ## Provenance
 
 Source: `https://www.sebi.gov.in/enforcement/orders/...`, the public enforcement-orders section. Listing metadata is collected via the site's own AJAX paging endpoint; each order's PDF is resolved from the viewer iframe on its page and text-extracted with pdfplumber.
 
-Documents were retrieved between 2026-08-05 and the date in each row's `fetched_at`. SEBI may revise or withdraw orders; a SHA-256 per document is planned so drift is detectable.
+Documents were retrieved between 2026-08-05 and 2026-08-08; each row's `fetched_at` carries its own timestamp. SEBI may revise or withdraw orders; a SHA-256 per document is planned so drift is detectable.
+
+sebi.gov.in drops connections frequently, so both scrapers are resumable and a full fetch of the 2,000-order sample takes a few hours. Re-running the script skips what is already stored.
 
 ## Redistribution and licence
 

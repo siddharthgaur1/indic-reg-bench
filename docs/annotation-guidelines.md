@@ -53,7 +53,7 @@ Orders quote the noticee's own settlement pleas verbatim, in identical phrasing:
 
 > `my client ... express his sincere willingness to settle the Issue for a minimum penalty of Rs. 1 lacs or 1.20 Lacs under Settlement Scheme.`
 
-Measured on the pilot: the first currency amount in the document differs from the operative one in **6 of 25 orders**.
+Measured over the full corpus: the first currency amount differs from the operative one in **48.6%** of orders (567 of 1,166 comparable). On the 25-order pilot this looked like 24%; it is roughly a coin flip.
 
 **Rule:** the penalty is what appears after `hereby impose` in the AO's own voice, in the final operative paragraph. Amounts inside quotation marks, inside indented submissions, or attributed to a party are never the label. When both a quoted and an imposed figure exist, note it — those orders are T5 examples.
 

@@ -53,11 +53,11 @@ all 2,006 fetched documents, not assumed, and written up in
 
 ## Why these five tasks
 
-Task design was derived from 25 real orders, not from assumptions. Four findings shaped it:
+Task design was derived from 25 real orders, then re-verified against all 2,006. Four findings shaped it:
 
 1. **`Rs.` ends in a period.** Sentence splitters truncate the operative sentence immediately before the penalty amount.
 2. **Penalty tables are column-scrambled** by text extraction — the amount precedes the noticee number, which precedes the name. Nearest-neighbour association mis-attributes penalties.
-3. **Orders quote the noticee's own settlement pleas** in phrasing identical to the AO's ruling. The first currency amount differs from the operative one in **6 of 25 orders**.
+3. **Orders quote the noticee's own settlement pleas** in phrasing identical to the AO's ruling. The first currency amount differs from the operative one in **48.6%** of orders at full corpus scale (it was 6 of 25 in the pilot).
 4. **Two fields were cut for being regex-solvable** — `order_date` and `adjudicating_officer` both sit in a fixed signature block. If a regex solves it, it isn't a task.
 
 | Task | Input → Output | Metric |
