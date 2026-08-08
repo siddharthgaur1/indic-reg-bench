@@ -11,6 +11,13 @@ requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 dependencies = ["requests>=2.31", "pdfplumber>=0.11", "beautifulsoup4>=4.12"]
 
+# Only scripts/export_hf.py --upload needs this, and only the dataset author
+# ever runs it. Declared rather than left implicit: it was imported by the repo
+# and listed nowhere, so a fresh clone hit ImportError at the point of upload
+# with nothing to tell it what to install.
+[project.optional-dependencies]
+hf = ["huggingface_hub>=0.23"]
+
 [project.scripts]
 indic-reg-bench = "indic_reg_bench.cli:main"
 

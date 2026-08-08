@@ -1,2 +1,10 @@
+# Runtime dependencies. Kept in step with [project.dependencies] in
+# pyproject.toml - beautifulsoup4 was declared there but missing here, so
+# `pip install -r requirements.txt` followed by scripts/scrape_listing.py
+# failed on import.
 requests>=2.31
 pdfplumber>=0.11
+beautifulsoup4>=4.12
+
+# Publishing the dataset also needs the `hf` extra:
+#   pip install -e ".[hf]"

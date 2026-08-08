@@ -71,7 +71,12 @@ def build_card(n_listing: int, n_sample: int) -> str:
 
 
 def upload(n_listing: int, n_sample: int) -> None:
-    from huggingface_hub import HfApi
+    # Imported here so the export half of this script runs without the extra.
+    try:
+        from huggingface_hub import HfApi
+    except ImportError:
+        raise SystemExit(
+            "uploading needs the optional hf extra:  pip install -e \".[hf]\"")
 
     api = HfApi()
     api.create_repo(HF_REPO, repo_type="dataset", exist_ok=True)
