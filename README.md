@@ -30,7 +30,9 @@ Document-level shares are **provisional** while the fetch runs: it goes
 newest-first, so each figure drifts as the crawl reaches back toward 2004.
 
 - A naive first-currency-amount extractor disagrees with the operative
-  paragraph in **46.7%** of orders. That gap is the benchmark's reason to exist.
+  paragraph in **43.7%** of orders (n=661 comparable, of 1,325 fetched). That
+  gap is the benchmark's reason to exist, and it has held at 24% → 47% → 44%
+  across three sample sizes spanning two orders of magnitude.
 - **A large minority of adjudications impose no monetary penalty at all** —
   abated on the noticee's death, or the SCN disposed of without imposition.
   Running at 25% and rising as the crawl reaches older orders. Answering

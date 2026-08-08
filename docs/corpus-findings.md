@@ -166,8 +166,15 @@ carries the backtick, and `corpus_stats.py` and `label.py` both import that one
 pattern instead of keeping their own copies — three regexes had drifted apart,
 and only one of them was ever going to get fixed by hand.
 
-The earlier 46.7% first-vs-operative figure was computed over "comparable
-documents", which by construction excluded these. It should be recomputed.
+**Recomputed with the backtick included, n=1,325:** the first currency amount
+disagrees with the operative paragraph in **43.7%** of comparable documents
+(289 of 661). The headline premise survives its own bug fix, and has now held
+at 24.0% (n=25), 46.7% (n=105) and 43.7% (n=1,325) — across two orders of
+magnitude of sample size.
+
+Surface-form counts at n=1,325 also change: the backtick appears in **16%** of
+documents, which puts it ahead of `Lacs`, `Lac` and `Crore` and just behind
+`₹` itself at 21%.
 
 ### Finding 10 — one noticee can carry several penalties, and the T1 example says otherwise
 
