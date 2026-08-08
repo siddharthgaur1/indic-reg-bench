@@ -17,11 +17,26 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 |---|---|
 | Listing metadata | ✅ 11,957 orders, Nov 2004 – Jul 2026 — [on HuggingFace](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench) |
 | Document fetcher | ✅ working, resumable |
-| Evaluation harness | ✅ pip-installable, 15 tests passing in CI |
-| Labelling CLI | ✅ built |
+| Evaluation harness | ✅ pip-installable, 34 tests passing in CI |
+| Labelling CLI | ✅ built; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
+| Document text | 🔄 1,107 of 2,000 fetched |
 | Gold set | ❌ 0 of a target 400–600 |
 | Baseline scores | ❌ blocked on the gold set |
+
+**What the corpus already tells you, before any label exists** — measured, not
+assumed, and written up in [`docs/corpus-findings.md`](docs/corpus-findings.md):
+
+- A naive first-currency-amount extractor disagrees with the operative
+  paragraph in **46.7%** of orders. That gap is the benchmark's reason to exist.
+- **One adjudication in six imposes no monetary penalty** — abated on the
+  noticee's death, or the SCN disposed of without imposition. Predicting
+  "monetary" every time is wrong 16% of the time.
+- **10.4% of orders state the penalty only inside a table** that text extraction
+  scrambles into the wrong noticee. Those must be labelled from the PDF.
+- Multi-hop was cut from v1 on 25 documents and **that decision was wrong**:
+  across the full listing, 250 entities recur across genuinely unrelated
+  matters, because brokers are repeat players. Reinstated for v1.1.
 
 ## Why these five tasks
 

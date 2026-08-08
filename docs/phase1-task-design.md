@@ -6,6 +6,14 @@
 >
 > The task suite and the cuts are unaffected.
 
+> **Corrected again 2026-08-08 at n=1,107 documents / 10,827 listed orders. This round changes a decision, not just a number:**
+> - **§4 "multi-hop: cut from v1" is reversed.** §4's evidence was 9 of 133 entities recurring, all inside one matter family. Across the full listing, **250 entities recur across genuinely different matters** — brokers and intermediaries are repeat players, which 25 documents from a single retail-heavy proceeding could not show. `ahilya commercial` appears in 11 unrelated scrips, `galaxy broking` in 9, `arun panchariya` across 7 separate GDR issues. Multi-hop is viable and should ship in **v1.1**, built from document bodies rather than titles — not be written off. See Finding 5.
+> - **§2's cut rule for T2 now has a threshold.** The majority-class bar is **`15HA` at 47.2%** of label instances.
+> - **§3's T1 schema understates `penalty_type`.** Roughly **one adjudication in six imposes no monetary penalty** — abated on the noticee's death, SCN "disposed of without imposition of monetary penalty", or a warning. The field is a real prediction rather than a near-constant, and those same documents are a ready-made, absence-defined pool for T4. See Finding 7.
+> - §5's note on deceased noticees describes a recurring category, not three outliers.
+>
+> The five-task suite stands. What changed: multi-hop returns for v1.1, and two fields treated as formalities carry signal.
+
 **Status:** proposal for review. Nothing here is a label, a score, or a dataset.
 **Evidence base:** 25 SEBI adjudication orders fetched 2026-08-05, 1,476,418 characters, 1–88 pages (median 21). Every quotation below is verbatim from those PDFs.
 
