@@ -2,7 +2,138 @@
 
 Properties of the corpus, computed without reference to any label. Nothing here is a score for any system, and nothing here required the gold set to exist.
 
-Reproduce with `python scripts/corpus_stats.py`.
+Reproduce with `python scripts/corpus_stats.py` and `python scripts/task_viability.py`.
+
+---
+
+## Run of 2026-08-08 — n=1,107 fetched, full 10,827-order listing
+
+Two Phase 1 decisions were written as measurable conditions rather than
+judgements. Both conditions are now measured. **One of them reverses.**
+
+Entity recurrence below is computed over the **entire 10,827-order adjudication
+listing**, not just fetched documents, because order titles carry the noticee
+and the matter — so this particular finding is already at final scale and will
+not move when the fetch completes. Everything computed from document *text* is
+at n=1,107 and still climbing.
+
+### Finding 5 — multi-hop is viable, and the Phase 1 deferral was an artifact of n=25
+
+Phase 1 cut multi-hop from v1 on this evidence: 133 distinct entities across 25
+orders, 9 recurring, and all 9 traceable to a single matter family (the illiquid
+stock options proceedings). The conclusion drawn was that recurrence in this
+corpus is a formatting artifact. At full listing scale that is wrong.
+
+| | Phase 1 (n=25 docs) | Now (10,827 orders) |
+|---|---|---|
+| Distinct noticees | 133 | 6,156 |
+| Appearing in >1 order | 9 (6.8%) | 352 (5.7%) |
+| Appearing in >1 **matter** | 0 genuine | **250 (4.1%)** |
+
+The rate is similar; the *composition* is not. The recurring entities are
+brokers, intermediaries and promoters appearing in genuinely unrelated
+proceedings:
+
+| Entity | Matters | Character of the recurrence |
+|---|---|---|
+| `ahilya commercial` | 11 | eleven unrelated scrips — Blue Print Securities, Brahmanand Himghar, Limtex, Minolta Finance, Oasis Cine, Parbati Holdings, … |
+| `galaxy broking` | 9 | nine unrelated scrips — KRBL, Seagull Leafin, Marson's, Nandan Exim, Parsoli, Sarang Chemicals, Today's Writing |
+| `arun panchariya` | 7 | seven separate GDR issues (Nakoda, Winsome Yarns, Edserv, Teledata, Zenith, Southern Ispat, Texmo) |
+| `crosseas capital services` | 7 | broker across seven proceedings |
+| `opg securities` | 5 | Bedmutha, Prakash Constrowell, Ujaas Energy, plus illiquid options |
+
+This is exactly the cross-matter density Phase 1 said was missing, and it has an
+obvious cause that 25 documents could not show: **intermediaries are repeat
+players.** A broker is named across every scrip it traded. Phase 1 sampled 25
+documents dominated by one retail-heavy proceeding and saw none of them.
+
+**Recommendation: reinstate multi-hop for v1.1, not v1.** The existence proof
+holds, but the questions must be built from document *bodies*, not titles, and
+the bodies are 1,107 of 2,000 fetched. Two caveats that must ship with the task:
+
+- Entity names *and matter names* are normalised aggressively (honorifics,
+  `M/s`, `Pvt Ltd`/`Limited` suffixes, punctuation), each folded to a fixed
+  point. Over-merging inflates recurrence, so these counts are an upper bound.
+  An earlier run of this measurement folded matter names less than entity names,
+  which counted `M/s KRBL Ltd` and `KRBL Ltd` as two matters and credited
+  Arun Panchariya with 8 rather than 7. Both now use the same folding.
+- 4,176 of 10,827 titles (38.6%) name no one — either no `in respect of` clause,
+  or `in respect of 4 entities`. Those noticees are recoverable only from the
+  document body, so real recurrence is **higher** than 3.7%, not lower.
+
+### Finding 6 — T2's majority-class baseline, now with a number
+
+Phase 1's cut rule for T2 ("cut it if the best system cannot clear majority-class
+by a wide margin") could not be applied without knowing the prior. Reading the
+charging section out of the operative paragraph gives a regex **estimate** of it
+— not gold, never written to disk as a label:
+
+| Section | Instances | Share |
+|---|---|---|
+| `15HA` | 285 | **47.2%** |
+| `15HB` | 126 | 20.9% |
+| `15A(b)` | 96 | 15.9% |
+| `15A(a)` | 30 | 5.0% |
+| `15C` | 16 | 2.7% |
+| others | 50 | 8.3% |
+
+The bar for T2 is therefore roughly **47% accuracy, free**. This confirms the
+n=105 correction (`15HA` dominates, not `15HB`) and sharpens it into a threshold
+the task can be judged against. The cut rule stands and is now falsifiable.
+
+### Finding 7 — the labelling queue is 96% usable, and an earlier claim here was wrong
+
+An earlier version of `task_viability.py` probed for the operative paragraph with
+`hereby impose` and reported that **37.8% of documents have none**, calling them
+unlabellable. That number is worthless and the conclusion was wrong. Reading the
+documents splits it into four groups, only two of which are waste:
+
+| Group | Docs | Share | What a labeller does |
+|---|---|---|---|
+| Operative paragraph in prose | 668 | 60.3% | label from text |
+| **No penalty imposed** | 179 | 16.2% | label as such — this is an outcome, not a defect |
+| Penalty present but table-scrambled | 115 | 10.4% | label from the PDF, not the text |
+| Unclassified | 99 | 8.9% | read before labelling |
+| No text layer (scanned PDF) | 26 | 2.3% | **waste** — needs OCR |
+| Corrigendum | 20 | 1.8% | **waste** — exclude |
+
+Two consequences for task design:
+
+1. **`penalty_type` in T1 is a real prediction, not a formality.** SEBI closes
+   roughly one adjudication in six without any monetary penalty — proceedings
+   abated on the noticee's death, SCNs "disposed of without imposition of
+   monetary penalty", warnings. A system that always answers `monetary` is wrong
+   ~16% of the time. Phase 1's schema treated this field as near-constant.
+2. **T4 gets a large, free, absence-defined pool.** Phase 1 called T4 the highest
+   value task and worried about constructing *plausible* unanswerable questions.
+   The corpus supplies 179 of them outright: ask "what penalty was imposed on the
+   noticee?" of an order that imposes none, and the gold answer is defined by
+   absence, which is exactly the property that makes T4 verifiable by a second
+   reader.
+
+The phrase that mattered was `without imposition of` — the nominalised form.
+Probing only for `without imposing any` left 194 documents misfiled. Recorded
+here because it is the second time on this corpus that a plausible regex has
+produced a confident wrong number about task viability.
+
+### Finding 8 — 2.3% of orders have no text layer at all
+
+26 documents extract to under 200 characters from 14–21 page PDFs: they are
+scans with no embedded text. All are older orders (Baroda Rayon, Jayshree
+Petrochemicals, Era Constructions). The fetch runs newest-first, so **this share
+will grow as the crawl reaches back toward 2004**, and it puts a real ceiling on
+how far back a text-only benchmark can reach. This needs restating once the
+fetch completes; it may justify either an OCR pass or an explicit date floor on
+the benchmark sample.
+
+### Fixed while measuring — the crawl died on its own progress log
+
+The 2,000-document fetch stopped at 1,087 with
+`UnicodeEncodeError: 'charmap' codec can't encode character '\x96'`. An en-dash
+in an order title, printed to a Windows cp1252 stream, killed a multi-hour crawl
+— the logging, not the data or the network. `scripts/fetch_orders.py` now
+reconfigures stdout/stderr to UTF-8 with `errors="replace"`. Resumability meant
+nothing was lost, which is the only reason this cost minutes instead of hours.
 
 ---
 

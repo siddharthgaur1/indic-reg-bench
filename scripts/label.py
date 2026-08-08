@@ -23,25 +23,85 @@ import json
 import re
 import sqlite3
 import sys
+import textwrap
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from task_viability import (  # noqa: E402
+    NONE_IMPOSED, PROSE, TABLE, UNCLASSIFIED, WASTE, classify,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 DB = REPO / "data" / "corpus.db"
 LABELS = REPO / "labels"
 DECISIONS = LABELS / "decisions.jsonl"
 
+# What each bucket means for the person reading the document. Shown as a banner
+# so nobody spends ten minutes hunting for a penalty in an order that imposes
+# none, or labels a scrambled table from the text and gets the wrong noticee.
+BANNER = {
+    PROSE: ("", "Penalty is stated in prose. The window below should contain it."),
+    NONE_IMPOSED: (
+        "NO PENALTY IMPOSED",
+        "This order closes without a monetary penalty - abated on death, or the "
+        "SCN disposed of without imposition. That is the label. Record "
+        "penalty_type and move on; do not hunt for an amount.",
+    ),
+    TABLE: (
+        "PENALTY IS IN A TABLE - OPEN THE PDF",
+        "Text extraction scrambles penalty table columns: the amount lands "
+        "before the noticee number, which lands before the name. Labelling "
+        "noticee-to-penalty from the text below will attribute it to the wrong "
+        "person. Open the source PDF.",
+    ),
+    UNCLASSIFIED: (
+        "UNRECOGNISED DISPOSITION",
+        "No operative paragraph matched and no known no-penalty phrasing. Read "
+        "the end of the document before labelling, and note what it says - "
+        "these are how the classifier gets fixed.",
+    ),
+}
 
-def operative_window(text: str, width: int = 1400) -> str:
-    """The paragraph where the penalty is actually imposed.
 
-    Anchored on the last 'hereby impose' - orders quote the noticee's own
-    settlement pleas earlier in identical phrasing, so the *last* occurrence is
+DISPOSITION = re.compile(
+    r"hereby\s+impose|without\s+impos(?:ing|ition\s+of)|"
+    r"(?:stands?|are|is)\s+disposed\s+of|no\s+penalty\s+is\s+(?:being\s+)?impos",
+    re.I,
+)
+
+
+PENALTY_IN_WORDS = re.compile(r"\(\s*Rupees\s+[A-Z]", re.I)
+
+
+def operative_window(text: str, bucket: str | None = None, width: int = 1400) -> str:
+    """The paragraph where the order actually disposes of the proceeding.
+
+    Anchored on the *last* disposition phrase - orders quote the noticee's own
+    settlement pleas earlier in identical phrasing, so the last occurrence is
     the operative one far more often than the first.
+
+    Anchoring on `hereby impose` alone missed every order that closes without a
+    penalty, which is one document in six, and silently fell back to the last
+    1,400 characters - the signature block and page footer. Those documents got
+    a window containing nothing relevant at all.
+
+    Table-scrambled orders need a different anchor entirely. Their operative
+    text is inside a table, so the last *prose* disposition phrase is usually
+    the noticee's own quoted plea to drop the SCN - which reads exactly like a
+    disposition and is the opposite of one. For those, anchor on the amount in
+    words, which is where the table is.
     """
     flat = re.sub(r"\s+", " ", text)
-    i = flat.lower().rfind("hereby impose")
-    if i < 0:
+    if bucket == TABLE:
+        hits = list(PENALTY_IN_WORDS.finditer(flat))
+        if hits:
+            return flat[max(0, hits[0].start() - 700): hits[-1].end() + 700]
+    hits = list(DISPOSITION.finditer(flat))
+    if hits:
+        i = hits[-1].start()
+    else:
         i = flat.lower().rfind("penalty of")
     if i < 0:
         return flat[-width:]
@@ -74,8 +134,17 @@ def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
     print(f"  {row['title'][:74]}")
     print(f"  {row['order_date']}   {row['n_pages']}p   {row['url'][:70]}")
     print("=" * 78)
+
+    bucket = classify(row["title"], len(row["text"] or ""), row["text"])
+    headline, guidance = BANNER.get(bucket, ("", ""))
+    if headline:
+        print(f"\n  !! {headline}")
+    if guidance:
+        for line in textwrap.wrap(guidance, 74):
+            print(f"     {line}")
+
     print("\n--- operative window (read it; nothing below is pre-filled) ---")
-    print(operative_window(row["text"]))
+    print(operative_window(row["text"], bucket))
     print("--- end window ---\n")
 
     cmd = ask("[enter]=label  s=skip  q=quit")
@@ -126,6 +195,11 @@ def main() -> int:
                     help="re-label already-labelled orders (for self-agreement)")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--stats", action="store_true")
+    ap.add_argument("--bucket", default=None,
+                    help="only orders whose triage bucket matches this substring, "
+                         "e.g. --bucket table  or  --bucket 'no penalty'")
+    ap.add_argument("--keep-waste", action="store_true",
+                    help="include corrigenda and scanned PDFs (excluded by default)")
     args = ap.parse_args()
 
     if not args.db.exists():
@@ -149,6 +223,16 @@ def main() -> int:
         "SELECT url, title, order_date, n_pages, text FROM order_text ORDER BY url").fetchall()
     conn.close()
 
+    # Corrigenda and scanned PDFs carry no label and cost the same time to open
+    # as a real order. 46 of the first 1,107 fetched are one or the other.
+    if not args.keep_waste:
+        before = len(rows)
+        rows = [r for r in rows
+                if classify(r["title"], len(r["text"] or ""), r["text"]) not in WASTE]
+        if before != len(rows):
+            print(f"skipping {before - len(rows)} corrigenda / scanned PDFs "
+                  f"(--keep-waste to include)")
+
     # In --redo the point is to re-label what was already done, a week later.
     pool = [r for r in rows if (r["url"] in done) == bool(args.redo)]
     if args.redo:
@@ -156,7 +240,18 @@ def main() -> int:
             encoding="utf-8").splitlines() if l.strip()} if (LABELS / f"{args.task}.jsonl").exists() else set()
         pool = [r for r in rows if r["url"] in first and r["url"] not in done]
 
+    if args.bucket:
+        pool = [r for r in pool
+                if args.bucket.lower() in
+                classify(r["title"], len(r["text"] or ""), r["text"]).lower()]
+        print(f"filtered to bucket matching {args.bucket!r}")
+
     print(f"{len(pool)} orders available, {len(done)} already in {out_path.name}")
+    if pool:
+        dist = Counter(classify(r["title"], len(r["text"] or ""), r["text"])
+                       for r in pool)
+        for b, c in dist.most_common():
+            print(f"  {c:5}  {b}")
     notes: list[str] = []
     written = 0
 

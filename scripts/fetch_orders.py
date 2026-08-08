@@ -15,6 +15,7 @@ not an anchor, so the href has to be pulled out of the iframe's query string.
 import argparse
 import re
 import sqlite3
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,14 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 import pdfplumber
 import requests
+
+# Order titles carry en-dashes and other non-cp1252 characters. On a Windows
+# console that is a hard UnicodeEncodeError mid-crawl, which killed a run at
+# document 1,087 of 2,000 - the progress line, not the data, took the process
+# down. Never let logging end a crawl.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 REPO = Path(__file__).resolve().parent.parent
 LISTING_DB = REPO.parent / "sebi-explorer" / "data" / "sebi_orders.db"
