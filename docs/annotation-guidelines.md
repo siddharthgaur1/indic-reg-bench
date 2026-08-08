@@ -69,7 +69,7 @@ Several SEBI PDFs embed ₹ in a font whose glyph extracts as **U+0060 GRAVE ACC
 
 > `MIL made a preferential allotment of convertible equity warrants for ` 30 crores`
 
-It is the only currency marker in **4.8%** of fetched orders, and appears alongside `Rs.` in 109 more.
+It is the only currency marker in **10.4%** of fetched orders (204 of 1,958 with a text layer), appears alongside `Rs.` in 292 more, and turns up in a quarter of the corpus overall — more often than the actual `₹` character.
 
 **Rule:** treat `` ` `` before a number as ₹. If an order looks like it contains no amounts at all, this is why — check before recording "no penalty". The labelling CLI's span finder already handles it; your eyes are the part that needs telling.
 

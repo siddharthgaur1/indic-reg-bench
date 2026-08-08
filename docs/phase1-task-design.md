@@ -6,13 +6,15 @@
 >
 > The task suite and the cuts are unaffected.
 
-> **Corrected again 2026-08-08 at n=1,107 documents / 10,827 listed orders. This round changes a decision, not just a number:**
+> **Corrected again 2026-08-08 at n=2,006 fetched documents (the complete benchmark sample) / 10,827 listed orders. This round changes a decision, not just a number:**
 > - **§4 "multi-hop: cut from v1" is reversed.** §4's evidence was 9 of 133 entities recurring, all inside one matter family. Across the full listing, **250 entities recur across genuinely different matters** — brokers and intermediaries are repeat players, which 25 documents from a single retail-heavy proceeding could not show. `ahilya commercial` appears in 11 unrelated scrips, `galaxy broking` in 9, `arun panchariya` across 7 separate GDR issues. Multi-hop is viable and should ship in **v1.1**, built from document bodies rather than titles — not be written off. See Finding 5.
 > - **§2's cut rule for T2 now has a threshold.** The majority-class bar is **`15HA` at 47.2%** of label instances.
 > - **§3's T1 schema understates `penalty_type`.** Roughly **one adjudication in six imposes no monetary penalty** — abated on the noticee's death, SCN "disposed of without imposition of monetary penalty", or a warning. The field is a real prediction rather than a near-constant, and those same documents are a ready-made, absence-defined pool for T4. See Finding 7.
 > - §5's note on deceased noticees describes a recurring category, not three outliers.
 >
-> - **§1.4's surface-form table is incomplete in a way that hides documents.** The rupee sign extracts as a **backtick** (U+0060) from many SEBI PDFs — `₹30 crores` becomes `` ` 30 crores ``. It is the only currency marker in 4.8% of orders, which matched no currency regex in this repo at all. See Finding 9.
+> - **§1.4's surface-form table is incomplete in a way that hides documents.** The rupee sign extracts as a **backtick** (U+0060) from many SEBI PDFs — `₹30 crores` becomes `` ` 30 crores ``. It is the only currency marker in **10.4%** of orders, which matched no currency regex in this repo at all, and is more common across the corpus than `₹` itself. See Finding 9.
+> - **§1.3's headline is now 48.6%** (567 of 1,166 comparable documents), up from 46.7% at n=105 — the T5 premise strengthens at full scale.
+> - **§7's crawl-scope estimate was right.** It projected ~2 hours and several hundred MB for ~2,000 orders; the actual fetch took roughly that and produced 70M characters. It also correctly predicted that corrigenda would need filtering — 21 of them reached the sample despite the listing-level `doc_type` filter.
 > - **§3's T1 JSON example is wrong for one order in eight.** It shows one penalty and one charging section per noticee. 13.1% of *single-noticee* orders impose several penalties under several sections on the same person. §3's scoring (micro-F1 over `(name, penalty, section)` triples) already handles this correctly; only the example and the labelling prompt did not. See Finding 10.
 >
 > The five-task suite stands. What changed: multi-hop returns for v1.1, and three things treated as formalities — `penalty_type`, the currency pattern, and one-row-per-noticee — each turn out to carry signal or hide documents.

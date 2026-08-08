@@ -119,6 +119,36 @@ def test_prose_penalty_is_labellable_from_text():
 
 
 @pytest.mark.parametrize("phrasing", [
+    "I impose a penalty of Rs. 5,00,000/- on the Noticee.",
+    "I hereby impose a penalty of Rs. 5,00,000/- on the Noticee.",
+    "I am imposing a monetary penalty of Rs. 5,00,000/- on the Noticee.",
+    "it is a fit case to impose a consolidated penalty of Rs. 5,00,000/-.",
+])
+def test_operative_phrasings_without_the_word_hereby(phrasing):
+    """Older orders impose without saying 'hereby' - 251 of them.
+
+    The gap only surfaced once the crawl reached back past 2016, which is why
+    the residue has to be re-read at every corpus size rather than once.
+    """
+    text = BODY + "ORDER 37. " + phrasing
+    assert classify("Adjudication Order in respect of A", len(text), text) == PROSE
+
+
+def test_the_rules_boilerplate_is_not_an_operative_paragraph():
+    """This title appears in nearly every order and must never match.
+
+    It is the reason the operative pattern requires 'penalty of' rather than
+    just 'impos... penalt' - the boilerplate says 'Imposing Penalties by
+    Adjudicating Officer', with no 'of'.
+    """
+    text = (BODY + "under the SEBI (Procedure for Holding Inquiry and Imposing "
+            "Penalties by Adjudicating Officer) Rules, 1995, the proceedings "
+            "are disposed of without imposition of monetary penalty.")
+    assert classify("Adjudication Order in respect of A", len(text),
+                    text) == NONE_IMPOSED
+
+
+@pytest.mark.parametrize("phrasing", [
     "the SCN dated August 31, 2021 is disposed of without imposition of monetary penalty.",
     "the proceedings are disposed of without imposing any monetary penalty.",
     "no penalty is imposed on the Noticee.",

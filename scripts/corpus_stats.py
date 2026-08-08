@@ -15,10 +15,13 @@ from __future__ import annotations
 import argparse
 import re
 import sqlite3
+import sys
 from collections import Counter
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from indic_reg_bench.numerals import CURRENCY  # noqa: E402
+from task_viability import OPERATIVE  # noqa: E402
 
 DB = Path(__file__).resolve().parent.parent / "data" / "corpus.db"
 # One currency pattern for the whole repo. It carries the backtick-as-rupee
@@ -53,7 +56,13 @@ def main() -> int:
     for _, _, raw in rows:
         t = re.sub(r"\s+", " ", raw)
         first = AMOUNT.search(t)
-        i = t.lower().rfind("hereby impose")
+        # Last operative phrase, not the first: orders quote the noticee's own
+        # settlement plea earlier in identical wording. Uses the shared pattern
+        # so this number cannot drift from the triage in task_viability.py -
+        # a literal "hereby impose" here missed every order that imposes
+        # without the word, which is 251 of them.
+        hits = list(OPERATIVE.finditer(t))
+        i = hits[-1].start() if hits else -1
         op = AMOUNT.search(t[i:i + 400]) if i >= 0 else None
         if first and op:
             comparable += 1

@@ -42,8 +42,20 @@ TITLE = re.compile(
 )
 
 # The operative paragraph names the charging section within a short window of
-# "hereby impose". 15J is the mitigating-factors provision and never a charge.
-OPERATIVE = re.compile(r"hereby\s+impose", re.I)
+# the imposing phrase. 15J is the mitigating-factors provision, never a charge.
+#
+# `hereby impose` alone misses 251 orders that read "I impose a penalty of" or
+# "imposing a monetary penalty of" - most of them pre-2016, which is why the
+# gap only showed up once the crawl reached back past 2016. The `penalty of`
+# tail is what keeps this off the Rules boilerplate ("...and Imposing Penalties
+# by Adjudicating Officer"), which appears in nearly every order and has no
+# "of" after it. Verified against the corpus before widening.
+OPERATIVE = re.compile(
+    r"hereby\s+impose|\bI\s+impose\b|"
+    r"impos\w+\s+(?:a\s+)?(?:consolidated\s+|monetary\s+|total\s+|combined\s+)?"
+    r"penalty\s+of",
+    re.I,
+)
 SECTION = re.compile(r"section\s+(15[A-Z]{1,2}(?:\([a-z]\))?)", re.I)
 
 # 321 titles say "in respect of 4 entities" or "in respect of three entities"

@@ -20,32 +20,36 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 | Evaluation harness | ✅ pip-installable, 34 tests passing in CI |
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
-| Document text | 🔄 1,107 of 2,000 fetched |
+| Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |
 | Gold set | ❌ 0 of a target 400–600 |
 | Baseline scores | ❌ blocked on the gold set |
 
-**What the corpus already tells you, before any label exists** — measured, not
-assumed, and written up in [`docs/corpus-findings.md`](docs/corpus-findings.md).
-Document-level shares are **provisional** while the fetch runs: it goes
-newest-first, so each figure drifts as the crawl reaches back toward 2004.
+**What the corpus already tells you, before any label exists** — measured over
+all 2,006 fetched documents, not assumed, and written up in
+[`docs/corpus-findings.md`](docs/corpus-findings.md):
 
 - A naive first-currency-amount extractor disagrees with the operative
-  paragraph in **43.7%** of orders (n=661 comparable, of 1,325 fetched). That
-  gap is the benchmark's reason to exist, and it has held at 24% → 47% → 44%
-  across three sample sizes spanning two orders of magnitude.
-- **A large minority of adjudications impose no monetary penalty at all** —
-  abated on the noticee's death, or the SCN disposed of without imposition.
-  Running at 25% and rising as the crawl reaches older orders. Answering
-  "monetary" every time is wrong that often, so T1's `penalty_type` is a real
-  prediction and T4 gets a free, absence-defined pool.
-- **~11% of orders state the penalty only inside a table** that text extraction
-  scrambles into the wrong noticee. Those must be labelled from the PDF, and
-  the labelling CLI says so when it shows you one.
+  paragraph in **48.6%** of orders (567 of 1,166 comparable). That gap is the
+  benchmark's reason to exist, and it has held across an 80× increase in
+  sample size — 24% at n=25, 47% at n=105, 49% at n=2,006 — and survived two
+  bug fixes to the extraction that measures it.
+- **18.3% of adjudications impose no monetary penalty at all** — abated on the
+  noticee's death, or the SCN disposed of without imposition. Answering
+  "monetary" every time is wrong nearly one time in five, so T1's
+  `penalty_type` is a real prediction, and T4 gets 368 free, absence-defined
+  items.
+- **13.4% of single-noticee orders impose more than one penalty**, under more
+  than one section. The scoring unit is the `(noticee, penalty, section)`
+  triple, not the person.
+- **The rupee sign extracts as a backtick** (U+0060) from a quarter of these
+  PDFs, and is the *only* currency marker in **10.4%** of them. Those documents
+  matched no currency pattern in this repo at all — returning nothing, never
+  erroring.
 - Multi-hop was cut from v1 on 25 documents and **that decision was wrong**:
   across the full 10,827-order listing, 250 entities recur across genuinely
   unrelated matters, because brokers are repeat players. Reinstated for v1.1.
-  (This one is already at final scale — it is computed from listing titles,
-  not fetched text.)
+- **96.6% of the corpus is labellable.** Only corrigenda (1.0%) and scanned
+  PDFs with no text layer (2.4%) are waste.
 
 ## Why these five tasks
 

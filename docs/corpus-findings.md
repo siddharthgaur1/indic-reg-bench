@@ -6,16 +6,34 @@ Reproduce with `python scripts/corpus_stats.py` and `python scripts/task_viabili
 
 ---
 
-## Run of 2026-08-08 — n=1,107 fetched, full 10,827-order listing
+## Run of 2026-08-08 — n=2,006 fetched (FINAL), full 10,827-order listing
+
+**The fetch is complete.** Every number in this section is final; nothing here
+is provisional any more.
+
+| | |
+|---|---|
+| Documents fetched | 2,006 |
+| Of the 2,000-order benchmark sample | 1,986 |
+| Characters | 69,979,073 |
+| Pages | min 1, median 13, max 140 |
+| Nominal date range | 2005 – 2026 |
+| **Effective date range** | **2008 – 2026** |
+
+**On the 14 sample orders not fetched, and the missing early years:** six are
+pre-2008, and that is not a fetch failure — SEBI's own listing contains exactly
+**7 adjudication orders before 2008** (one in 2004, four in 2005, none in 2006,
+two in 2007), against 90 in 2008 alone. The dataset card's "Nov 2004 – Jul 2026"
+is true of the *listing index* and misleading about the *corpus*: this is a
+2008–2026 benchmark. The other 8 misses are scattered connection failures and
+are re-fetchable by re-running the script.
 
 Two Phase 1 decisions were written as measurable conditions rather than
-judgements. Both conditions are now measured. **One of them reverses.**
+judgements. Both are now measured. **One of them reverses.**
 
-Entity recurrence below is computed over the **entire 10,827-order adjudication
+Entity recurrence is computed over the **entire 10,827-order adjudication
 listing**, not just fetched documents, because order titles carry the noticee
-and the matter — so this particular finding is already at final scale and will
-not move when the fetch completes. Everything computed from document *text* is
-at n=1,107 and still climbing.
+and the matter.
 
 ### Finding 5 — multi-hop is viable, and the Phase 1 deferral was an artifact of n=25
 
@@ -49,7 +67,7 @@ documents dominated by one retail-heavy proceeding and saw none of them.
 
 **Recommendation: reinstate multi-hop for v1.1, not v1.** The existence proof
 holds, but the questions must be built from document *bodies*, not titles, and
-the bodies are 1,107 of 2,000 fetched. Two caveats that must ship with the task:
+all 1,986 sampled bodies are now fetched. Two caveats that must ship with the task:
 
 - Entity names *and matter names* are normalised aggressively (honorifics,
   `M/s`, `Pvt Ltd`/`Limited` suffixes, punctuation), each folded to a fixed
@@ -70,16 +88,18 @@ charging section out of the operative paragraph gives a regex **estimate** of it
 
 | Section | Instances | Share |
 |---|---|---|
-| `15HA` | 285 | **47.2%** |
-| `15HB` | 126 | 20.9% |
-| `15A(b)` | 96 | 15.9% |
-| `15A(a)` | 30 | 5.0% |
-| `15C` | 16 | 2.7% |
-| others | 50 | 8.3% |
+| `15HA` | 438 | **43.8%** |
+| `15HB` | 197 | 19.7% |
+| `15A(b)` | 146 | 14.6% |
+| `15C` | 59 | 5.9% |
+| `15A(a)` | 57 | 5.7% |
+| `15A` | 45 | 4.5% |
+| others | 59 | 5.9% |
 
-The bar for T2 is therefore roughly **47% accuracy, free**. This confirms the
-n=105 correction (`15HA` dominates, not `15HB`) and sharpens it into a threshold
-the task can be judged against. The cut rule stands and is now falsifiable.
+Over 1,001 label instances. The bar for T2 is therefore roughly **44% accuracy,
+free**. This confirms the n=105 correction (`15HA` dominates, not `15HB`) and
+sharpens it into a threshold the task can be judged against. The cut rule stands
+and is now falsifiable.
 
 ### Finding 7 — the labelling queue is 96% usable, and an earlier claim here was wrong
 
@@ -88,58 +108,91 @@ An earlier version of `task_viability.py` probed for the operative paragraph wit
 unlabellable. That number is worthless and the conclusion was wrong. Reading the
 documents splits it into four groups, only two of which are waste:
 
+Final, n=2,006:
+
 | Group | Docs | Share | What a labeller does |
 |---|---|---|---|
-| Operative paragraph in prose | 687 | 56.0% | label from text |
-| **No penalty imposed** | 302 | 24.6% | label as such — this is an outcome, not a defect |
-| Penalty present but table-scrambled | 132 | 10.8% | label from the PDF, not the text |
-| Unclassified | 55 | 4.5% | read before labelling |
-| No text layer (scanned PDF) | 31 | 2.5% | **waste** — needs OCR |
-| Corrigendum | 20 | 1.6% | **waste** — exclude |
+| Operative paragraph in prose | 1,310 | 65.3% | label from text |
+| **No penalty imposed** | 368 | 18.3% | label as such — this is an outcome, not a defect |
+| Unclassified | 164 | 8.2% | read before labelling |
+| Penalty present but table-scrambled | 95 | 4.7% | label from the PDF, not the text |
+| No text layer (scanned PDF) | 48 | 2.4% | **waste** — needs OCR |
+| Corrigendum | 21 | 1.0% | **waste** — exclude |
 
-*(n=1,227 and rising. The fetch runs newest-first, so the no-penalty and
-scanned shares both climb as it reaches older orders — the no-penalty group
-went from 16% to 25% while this document was being written. Recompute at
-n=2,000 before quoting any of these externally.)*
+**96.6% of the fetched corpus is labellable.**
 
 Two consequences for task design:
 
 1. **`penalty_type` in T1 is a real prediction, not a formality.** SEBI closes
-   roughly one adjudication in six without any monetary penalty — proceedings
-   abated on the noticee's death, SCNs "disposed of without imposition of
-   monetary penalty", warnings. A system that always answers `monetary` is wrong
-   ~16% of the time. Phase 1's schema treated this field as near-constant.
+   **18.3%** of adjudications without any monetary penalty — proceedings abated
+   on the noticee's death, SCNs "disposed of without imposition of monetary
+   penalty", warnings. A system that always answers `monetary` is wrong nearly
+   one time in five. Phase 1's schema treated this field as near-constant.
 2. **T4 gets a large, free, absence-defined pool.** Phase 1 called T4 the highest
    value task and worried about constructing *plausible* unanswerable questions.
-   The corpus supplies 179 of them outright: ask "what penalty was imposed on the
-   noticee?" of an order that imposes none, and the gold answer is defined by
+   The corpus supplies **368** of them outright: ask "what penalty was imposed on
+   the noticee?" of an order that imposes none, and the gold answer is defined by
    absence, which is exactly the property that makes T4 verifiable by a second
    reader.
 
-Getting the bucket right took three passes over the *documents*, and each pass
-was triggered by reading the residue rather than by trusting the regex:
+Getting the bucket right took four passes over the *documents*, each triggered by
+reading the residue rather than by trusting the regex:
 
-1. `hereby impose` only → 37.8% "unlabellable".
-2. `+ without imposition of` (the nominalised form) → 8.9% unclassified.
-3. `+ hereby dispose of`, `+ not liable for … penalty` → **4.5%** unclassified.
+| Pass | Added | Unclassified |
+|---|---|---|
+| 1 | `hereby impose` only | 37.8% "unlabellable" |
+| 2 | `without imposition of` (the nominalised form) | 8.9% |
+| 3 | `hereby dispose of`, `not liable for … penalty` | 4.5% |
+| 4 | `I impose`, `impos… penalty of` (no "hereby") | **8.2%** at n=2,006 |
 
-Each addition was found by dumping the unclassified bucket and reading how those
-orders actually end, never by guessing a synonym. The remaining 4.5% is left
-unclassified on purpose and shown to the labeller with a warning; a bucket that
-admits it does not know is worth more than one padded out with regex guesses.
+Pass 4 is the instructive one. At n=1,227 the residue was 4.5% and looked
+finished; extending the crawl past 2016 pushed it back up to 10.7%, because
+**older orders impose without the word "hereby"** — "I impose a penalty of
+Rs. …". That phrasing appears in **251 orders**, every one of which had been
+filed as "no operative paragraph". Fixing it moved 251 documents into the
+labellable-from-text bucket and cut the apparent table-scrambled share from
+14.4% to 4.7% — most of those were never tables at all.
+
+The lesson is not "write a better regex". It is that **the residue has to be
+re-read at every corpus size**, because a pattern tuned on recent documents
+silently degrades on older ones and reports the degradation as a property of the
+corpus. The remaining 8.2% is left unclassified on purpose and shown to the
+labeller with a warning; a bucket that admits it does not know is worth more
+than one padded out with guesses.
 
 Recorded at this length because it is the third time on this corpus that a
 plausible regex has produced a confident wrong number about task viability.
 
-### Finding 8 — 2.3% of orders have no text layer at all
+### Finding 8 — scanned orders are a 2014–2022 problem, not an old-orders problem
 
-26 documents extract to under 200 characters from 14–21 page PDFs: they are
-scans with no embedded text. All are older orders (Baroda Rayon, Jayshree
-Petrochemicals, Era Constructions). The fetch runs newest-first, so **this share
-will grow as the crawl reaches back toward 2004**, and it puts a real ceiling on
-how far back a text-only benchmark can reach. This needs restating once the
-fetch completes; it may justify either an OCR pass or an explicit date floor on
-the benchmark sample.
+48 documents (2.4%) extract to under 200 characters from 14–21 page PDFs: they
+are scans with no embedded text layer.
+
+**The prediction recorded here at n=1,107 was wrong.** It said this share
+"will grow as the crawl reaches back toward 2004" and suggested a date floor on
+the benchmark sample. The completed fetch says the opposite:
+
+| Year | Docs | No text layer |
+|---|---|---|
+| 2008–2013 | 620 | **0 (0%)** |
+| 2014 | 101 | 9 (9%) |
+| 2015 | 98 | 13 (13%) |
+| 2016–2019 | 419 | 16 (4%) |
+| 2020–2022 | 345 | 9 (3%) |
+| 2023–2026 | 422 | 1 (0.2%) |
+
+Every order from 2008 through 2013 has a clean text layer. The scans cluster in
+**2014–2015 (9–13%)** and taper off after. The plausible cause is a change in
+SEBI's document workflow in that window rather than age — older orders were
+apparently produced digitally from the start.
+
+**So there is no date floor to impose**, and the earlier recommendation is
+withdrawn. A text-only benchmark reaches 2008 cleanly. If the 48 scans are ever
+worth recovering, it is an OCR pass over a specific two-year window, not a
+policy about old documents.
+
+This is the second time in this document that a trend extrapolated from the
+newest slice of a newest-first crawl pointed the wrong way.
 
 ### Finding 9 — the rupee sign extracts as a backtick, and it hid whole documents
 
@@ -153,11 +206,19 @@ regexes. The reason:
 Those backticks are rupee signs. Several SEBI PDFs embed ₹ in a font whose glyph
 maps to **U+0060 GRAVE ACCENT**, so `₹30 crores` extracts as `` ` 30 crores ``.
 
+Final, over the 1,958 documents with a text layer:
+
 | | Docs | Share |
 |---|---|---|
-| Standard `Rs.` / `₹` / `INR` | 978 | 78.8% |
-| Backtick-as-rupee | 169 | 13.6% |
-| **Backtick only — invisible to every prior pattern** | **60** | **4.8%** |
+| Standard `Rs.` / `₹` / `INR` | 1,495 | 76.4% |
+| Backtick-as-rupee | 496 | 25.3% |
+| **Backtick only — invisible to every prior pattern** | **204** | **10.4%** |
+| No currency amount at all | 259 | 13.2% |
+
+The backtick-only share **doubled** as the corpus grew — it was 4.8% at
+n=1,241. One document in ten had every currency amount invisible to this repo's
+own extraction. The backtick is also more common overall (25.3% of documents)
+than the actual `₹` character (14%).
 
 This is the most dangerous class of bug in a corpus pipeline: it does not fail,
 it silently returns nothing, so the affected documents drop out of every
@@ -166,15 +227,22 @@ carries the backtick, and `corpus_stats.py` and `label.py` both import that one
 pattern instead of keeping their own copies — three regexes had drifted apart,
 and only one of them was ever going to get fixed by hand.
 
-**Recomputed with the backtick included, n=1,325:** the first currency amount
-disagrees with the operative paragraph in **43.7%** of comparable documents
-(289 of 661). The headline premise survives its own bug fix, and has now held
-at 24.0% (n=25), 46.7% (n=105) and 43.7% (n=1,325) — across two orders of
-magnitude of sample size.
+**The headline number, final.** With the backtick included and the operative
+pattern corrected (Finding 7), the first currency amount in a document disagrees
+with the operative paragraph in **48.6%** of comparable documents — 567 of
+1,166, at n=2,006.
 
-Surface-form counts at n=1,325 also change: the backtick appears in **16%** of
-documents, which puts it ahead of `Lacs`, `Lac` and `Crore` and just behind
-`₹` itself at 21%.
+| Sample | Comparable docs | Disagree |
+|---|---|---|
+| Pilot, n=25 | 25 | 24.0% |
+| n=105 | 45 | 46.7% |
+| n=1,325 | 661 | 43.7% |
+| **Final, n=2,006** | **1,166** | **48.6%** |
+
+The premise the benchmark rests on survived two of its own bug fixes and an
+80× increase in sample size. A naive first-amount extractor is wrong on roughly
+half of all SEBI adjudication orders, before any multi-noticee mis-attribution
+is counted.
 
 ### Finding 10 — one noticee can carry several penalties, and the T1 example says otherwise
 
@@ -189,9 +257,13 @@ Measured over single-noticee orders only, so multi-party orders cannot inflate i
 
 | | Orders | Share |
 |---|---|---|
-| Examined (single-noticee, penalty present) | 758 | — |
-| More than one penalty amount in the operative window | 99 | **13.1%** |
-| More than one charging section | 43 | 5.7% |
+| Examined (single-noticee, penalty present) | 1,277 | — |
+| More than one penalty amount in the operative window | 171 | **13.4%** |
+| More than one charging section | 83 | 6.5% |
+
+The rate held almost exactly as the sample grew from 758 to 1,277 orders
+(13.1% → 13.4%), so this is a stable property of the corpus rather than a
+small-sample artifact.
 
 Phase 1's **scoring** is already right — it specifies micro-F1 over
 `(noticee_name, penalty_inr, charging_section)` triples. What is wrong is the
