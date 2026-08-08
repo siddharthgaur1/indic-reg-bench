@@ -27,7 +27,7 @@ Where extraction has visibly mangled a table (see §3), open the source PDF and 
 
 ---
 
-## 3. The four traps, and the rule for each
+## 3. The traps, and the rule for each
 
 ### 3.1 `Rs.` ends a sentence
 
@@ -63,6 +63,32 @@ Most orders state the amount twice: `Rs. 4,00,000/- (Rupees Four Lakh Only)`.
 
 **Rule:** label the numeral. If the words disagree with it, **do not silently pick one** — record both in `note` and flag the order. A genuine internal contradiction in a SEBI order is a finding, and it belongs in the limitations section, not smoothed over.
 
+### 3.5 A backtick is a rupee sign
+
+Several SEBI PDFs embed ₹ in a font whose glyph extracts as **U+0060 GRAVE ACCENT**:
+
+> `MIL made a preferential allotment of convertible equity warrants for ` 30 crores`
+
+It is the only currency marker in **4.8%** of fetched orders, and appears alongside `Rs.` in 109 more.
+
+**Rule:** treat `` ` `` before a number as ₹. If an order looks like it contains no amounts at all, this is why — check before recording "no penalty". The labelling CLI's span finder already handles it; your eyes are the part that needs telling.
+
+### 3.6 One noticee can owe several penalties
+
+Real order, one noticee, three penalties under three provisions:
+
+> `` ` 2,50,000/- ... under Section 15A(b) ... of Regulation 7(1) of SAST Regulations, 1997. ` 2,50,000/- ... of regulation 13(1) of PIT Regulations, 1992. ` 2,00,000/- ... of section 11C(3) ``
+
+**13.1%** of *single-noticee* orders impose more than one penalty; 5.7% cite more than one charging section.
+
+**Rule:** the unit of a T1 label is the `(noticee, penalty, section)` triple, not the person. Enter the same name once per triple. Collapsing three penalties into one row is a silent labelling error that scoring cannot detect, because a partial answer looks like a confident one.
+
+### 3.7 "No penalty imposed" is a label, not a failed extraction
+
+Roughly a quarter of adjudication orders close without any monetary penalty — proceedings abated on a noticee's death, an SCN "disposed of without imposition of monetary penalty", or a warning. The disposition is phrased at least five ways: `without imposing any penalty`, `without imposition of monetary penalty`, `hereby dispose of`, `not liable for monetary penalty`, `stands disposed of`.
+
+**Rule:** record `penalty_type` as the outcome and leave the amount empty. Do not skip the order, and do not go hunting for an amount that is not there — the labelling CLI flags these with a `NO PENALTY IMPOSED` banner. These orders are also the natural pool for T4 abstention items.
+
 ---
 
 ## 4. Resolved ambiguities
@@ -90,6 +116,22 @@ Build these **by construction, never by invention**:
 
 **Rule:** the question must be plausible for a SEBI order — drawn from a field that appears in *other* orders. "What is the noticee's shoe size" measures nothing. Record which order the field was borrowed from, so plausibility is auditable.
 
+`python scripts/label.py --task t4` implements this. Its questions are **templated, not written per document**, so whether an item is answerable is a property of the order rather than of the question writer. The bank is weighted by measured prevalence across 1,290 orders, and half of each document's questions are drawn from low-prevalence fields — sampling uniformly would make almost every item answerable, and a T4 set that is 90% answerable measures nothing about abstention:
+
+| Field | Present in |
+|---|---|
+| penalty amount | 99% |
+| charging section | 97% |
+| payment deadline | 78% |
+| regulations violated | 70% |
+| recovery on non-payment | 41% |
+| **disgorgement** | **19%** |
+| **debarment period** | **5%** |
+
+The last two are what make an unanswerable item hard: SEBI *does* order disgorgement in one order out of five, so declining it requires reading this order rather than knowing the genre.
+
+**Rule:** answer `-` only after searching the whole document. The CLI writes each order's full text to a searchable file and prints the path for exactly this reason — a windowed view makes "not stated" far too easy to answer wrongly.
+
 ---
 
 ## 6. Self-agreement protocol
@@ -109,3 +151,4 @@ Build these **by construction, never by invention**:
 - **No label inferred from the title.** Read the order.
 - **No amount typed from memory.** Copy it from the text.
 - **No skipped `note` on an ambiguous call.** The notes are what makes this document grow, and this document is the most defensible artifact in the project.
+- **No label written by exercising the CLI.** Piping input to `label.py` to check that it runs produces rows that are indistinguishable from real labels once written — this has already happened once and reached a public commit. Every smoke test passes `--dry-run`, which makes the write path unreachable.
