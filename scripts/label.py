@@ -66,8 +66,9 @@ BANNER = {
 
 
 DISPOSITION = re.compile(
-    r"hereby\s+impose|without\s+impos(?:ing|ition\s+of)|"
-    r"(?:stands?|are|is)\s+disposed\s+of|no\s+penalty\s+is\s+(?:being\s+)?impos",
+    r"hereby\s+impose|hereby\s+dispose\s+of|without\s+impos(?:ing|ition\s+of)|"
+    r"(?:stands?|are|is)\s+disposed\s+of|no\s+penalty\s+is\s+(?:being\s+)?impos|"
+    r"not\s+liable\s+(?:for|to)\s+(?:any\s+)?(?:monetary\s+)?penalt",
     re.I,
 )
 

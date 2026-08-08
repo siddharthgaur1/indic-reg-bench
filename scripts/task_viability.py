@@ -242,7 +242,9 @@ NO_PENALTY = re.compile(
     r"without\s+impos(?:ing|ition\s+of)\s+(?:any\s+)?(?:monetary\s+)?penalt|"
     r"no\s+penalty\s+is\s+(?:being\s+)?impos|"
     r"not\s+impos\w+\s+any\s+penalt|"
+    r"not\s+liable\s+(?:for|to)\s+(?:any\s+)?(?:monetary\s+)?penalt|"
     r"(?:stands?|are|is)\s+disposed\s+of|"
+    r"hereby\s+dispose\s+of|"
     r"death\s+certificate|deceased\s+noticee|abate",
     re.I,
 )

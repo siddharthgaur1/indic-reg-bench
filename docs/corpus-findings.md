@@ -90,12 +90,17 @@ documents splits it into four groups, only two of which are waste:
 
 | Group | Docs | Share | What a labeller does |
 |---|---|---|---|
-| Operative paragraph in prose | 668 | 60.3% | label from text |
-| **No penalty imposed** | 179 | 16.2% | label as such — this is an outcome, not a defect |
-| Penalty present but table-scrambled | 115 | 10.4% | label from the PDF, not the text |
-| Unclassified | 99 | 8.9% | read before labelling |
-| No text layer (scanned PDF) | 26 | 2.3% | **waste** — needs OCR |
-| Corrigendum | 20 | 1.8% | **waste** — exclude |
+| Operative paragraph in prose | 687 | 56.0% | label from text |
+| **No penalty imposed** | 302 | 24.6% | label as such — this is an outcome, not a defect |
+| Penalty present but table-scrambled | 132 | 10.8% | label from the PDF, not the text |
+| Unclassified | 55 | 4.5% | read before labelling |
+| No text layer (scanned PDF) | 31 | 2.5% | **waste** — needs OCR |
+| Corrigendum | 20 | 1.6% | **waste** — exclude |
+
+*(n=1,227 and rising. The fetch runs newest-first, so the no-penalty and
+scanned shares both climb as it reaches older orders — the no-penalty group
+went from 16% to 25% while this document was being written. Recompute at
+n=2,000 before quoting any of these externally.)*
 
 Two consequences for task design:
 
@@ -111,10 +116,20 @@ Two consequences for task design:
    absence, which is exactly the property that makes T4 verifiable by a second
    reader.
 
-The phrase that mattered was `without imposition of` — the nominalised form.
-Probing only for `without imposing any` left 194 documents misfiled. Recorded
-here because it is the second time on this corpus that a plausible regex has
-produced a confident wrong number about task viability.
+Getting the bucket right took three passes over the *documents*, and each pass
+was triggered by reading the residue rather than by trusting the regex:
+
+1. `hereby impose` only → 37.8% "unlabellable".
+2. `+ without imposition of` (the nominalised form) → 8.9% unclassified.
+3. `+ hereby dispose of`, `+ not liable for … penalty` → **4.5%** unclassified.
+
+Each addition was found by dumping the unclassified bucket and reading how those
+orders actually end, never by guessing a synonym. The remaining 4.5% is left
+unclassified on purpose and shown to the labeller with a warning; a bucket that
+admits it does not know is worth more than one padded out with regex guesses.
+
+Recorded at this length because it is the third time on this corpus that a
+plausible regex has produced a confident wrong number about task viability.
 
 ### Finding 8 — 2.3% of orders have no text layer at all
 

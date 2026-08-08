@@ -25,18 +25,25 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 | Baseline scores | ❌ blocked on the gold set |
 
 **What the corpus already tells you, before any label exists** — measured, not
-assumed, and written up in [`docs/corpus-findings.md`](docs/corpus-findings.md):
+assumed, and written up in [`docs/corpus-findings.md`](docs/corpus-findings.md).
+Document-level shares are **provisional** while the fetch runs: it goes
+newest-first, so each figure drifts as the crawl reaches back toward 2004.
 
 - A naive first-currency-amount extractor disagrees with the operative
   paragraph in **46.7%** of orders. That gap is the benchmark's reason to exist.
-- **One adjudication in six imposes no monetary penalty** — abated on the
-  noticee's death, or the SCN disposed of without imposition. Predicting
-  "monetary" every time is wrong 16% of the time.
-- **10.4% of orders state the penalty only inside a table** that text extraction
-  scrambles into the wrong noticee. Those must be labelled from the PDF.
+- **A large minority of adjudications impose no monetary penalty at all** —
+  abated on the noticee's death, or the SCN disposed of without imposition.
+  Running at 25% and rising as the crawl reaches older orders. Answering
+  "monetary" every time is wrong that often, so T1's `penalty_type` is a real
+  prediction and T4 gets a free, absence-defined pool.
+- **~11% of orders state the penalty only inside a table** that text extraction
+  scrambles into the wrong noticee. Those must be labelled from the PDF, and
+  the labelling CLI says so when it shows you one.
 - Multi-hop was cut from v1 on 25 documents and **that decision was wrong**:
-  across the full listing, 250 entities recur across genuinely unrelated
-  matters, because brokers are repeat players. Reinstated for v1.1.
+  across the full 10,827-order listing, 250 entities recur across genuinely
+  unrelated matters, because brokers are repeat players. Reinstated for v1.1.
+  (This one is already at final scale — it is computed from listing titles,
+  not fetched text.)
 
 ## Why these five tasks
 

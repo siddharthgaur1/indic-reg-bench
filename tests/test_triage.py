@@ -122,6 +122,10 @@ def test_prose_penalty_is_labellable_from_text():
     "the proceedings are disposed of without imposing any monetary penalty.",
     "no penalty is imposed on the Noticee.",
     "proceedings are liable to be abated; the death certificate was furnished.",
+    # 'hereby dispose of' and 'not liable for' account for another 129
+    # documents, found by reading the unclassified bucket a second time.
+    "I hereby dispose of the Adjudication Proceedings initiated vide the SCN.",
+    "the Noticee is not liable for monetary penalty under Section 15C.",
 ])
 def test_no_penalty_phrasings_are_recognised(phrasing):
     """`without imposition of` is the nominalised form and the most common one.
