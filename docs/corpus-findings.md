@@ -141,6 +141,59 @@ how far back a text-only benchmark can reach. This needs restating once the
 fetch completes; it may justify either an OCR pass or an explicit date floor on
 the benchmark sample.
 
+### Finding 9 — the rupee sign extracts as a backtick, and it hid whole documents
+
+A 31,000-character order containing dozens of amounts matched **zero** currency
+regexes. The reason:
+
+> `...MIL had issued capital of 71,50,000 shares of ` 10/- each. On January 4,
+> 2010 MIL made a preferential allotment of convertible equity warrants for
+> ` 30 crores...`
+
+Those backticks are rupee signs. Several SEBI PDFs embed ₹ in a font whose glyph
+maps to **U+0060 GRAVE ACCENT**, so `₹30 crores` extracts as `` ` 30 crores ``.
+
+| | Docs | Share |
+|---|---|---|
+| Standard `Rs.` / `₹` / `INR` | 978 | 78.8% |
+| Backtick-as-rupee | 169 | 13.6% |
+| **Backtick only — invisible to every prior pattern** | **60** | **4.8%** |
+
+This is the most dangerous class of bug in a corpus pipeline: it does not fail,
+it silently returns nothing, so the affected documents drop out of every
+measurement without appearing in any error count. `numerals.CURRENCY` now
+carries the backtick, and `corpus_stats.py` and `label.py` both import that one
+pattern instead of keeping their own copies — three regexes had drifted apart,
+and only one of them was ever going to get fixed by hand.
+
+The earlier 46.7% first-vs-operative figure was computed over "comparable
+documents", which by construction excluded these. It should be recomputed.
+
+### Finding 10 — one noticee can carry several penalties, and the T1 example says otherwise
+
+Real order, single noticee, three separate penalties:
+
+> `Penalty Amount Violation ` 2,50,000/- (Rupees Two Under section 15A(b) of
+> SEBI Act for violation Lakh Fifty Thousand Only) of Regulation 7(1) of SAST
+> Regulations, 1997. ` 2,50,000/- ... of regulation 13(1) of PIT Regulations,
+> 1992. ` 2,00,000/- ... of section 11C(3)...`
+
+Measured over single-noticee orders only, so multi-party orders cannot inflate it:
+
+| | Orders | Share |
+|---|---|---|
+| Examined (single-noticee, penalty present) | 758 | — |
+| More than one penalty amount in the operative window | 99 | **13.1%** |
+| More than one charging section | 43 | 5.7% |
+
+Phase 1's **scoring** is already right — it specifies micro-F1 over
+`(noticee_name, penalty_inr, charging_section)` triples. What is wrong is the
+**JSON example**, which shows one penalty and one section per noticee, and the
+labelling CLI, which read as one row per person. One noticee in eight owns more
+than one triple. The CLI now says so at the prompt; the schema example in the
+task design should be updated to show a repeated noticee before anyone labels
+at volume.
+
 ### Fixed while measuring — the crawl died on its own progress log
 
 The 2,000-document fetch stopped at 1,087 with

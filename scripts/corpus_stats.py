@@ -18,8 +18,12 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
+from indic_reg_bench.numerals import CURRENCY  # noqa: E402
+
 DB = Path(__file__).resolve().parent.parent / "data" / "corpus.db"
-AMOUNT = re.compile(r"(?:Rs\.?|₹|INR)\s?([\d][\d,]{2,15})")
+# One currency pattern for the whole repo. It carries the backtick-as-rupee
+# case, which this script previously missed - see numerals.CURRENCY.
+AMOUNT = re.compile(CURRENCY + r"\s?([\d][\d,]{2,15})")
 
 
 def main() -> int:
@@ -57,7 +61,7 @@ def main() -> int:
                 disagree += 1
         if re.search(r"Noticee[s]?\s*(?:No\.?|Nos\.?)\s*\d", t):
             multi_noticee += 1
-        for k in ("₹", "Rs.", "Lakh", "Lakhs", "Lac", "Lacs", "crore", "Crore"):
+        for k in ("₹", "`", "Rs.", "Lakh", "Lakhs", "Lac", "Lacs", "crore", "Crore"):
             if k in t:
                 surface[k] += 1
         sections.update(m.upper() for m in re.findall(r"section\s+(15[A-Z]{1,2}(?:\([a-z]\))?)", t, re.I))

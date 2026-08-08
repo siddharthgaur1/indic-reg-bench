@@ -12,7 +12,10 @@
 > - **§3's T1 schema understates `penalty_type`.** Roughly **one adjudication in six imposes no monetary penalty** — abated on the noticee's death, SCN "disposed of without imposition of monetary penalty", or a warning. The field is a real prediction rather than a near-constant, and those same documents are a ready-made, absence-defined pool for T4. See Finding 7.
 > - §5's note on deceased noticees describes a recurring category, not three outliers.
 >
-> The five-task suite stands. What changed: multi-hop returns for v1.1, and two fields treated as formalities carry signal.
+> - **§1.4's surface-form table is incomplete in a way that hides documents.** The rupee sign extracts as a **backtick** (U+0060) from many SEBI PDFs — `₹30 crores` becomes `` ` 30 crores ``. It is the only currency marker in 4.8% of orders, which matched no currency regex in this repo at all. See Finding 9.
+> - **§3's T1 JSON example is wrong for one order in eight.** It shows one penalty and one charging section per noticee. 13.1% of *single-noticee* orders impose several penalties under several sections on the same person. §3's scoring (micro-F1 over `(name, penalty, section)` triples) already handles this correctly; only the example and the labelling prompt did not. See Finding 10.
+>
+> The five-task suite stands. What changed: multi-hop returns for v1.1, and three things treated as formalities — `penalty_type`, the currency pattern, and one-row-per-noticee — each turn out to carry signal or hide documents.
 
 **Status:** proposal for review. Nothing here is a label, a score, or a dataset.
 **Evidence base:** 25 SEBI adjudication orders fetched 2026-08-05, 1,476,418 characters, 1–88 pages (median 21). Every quotation below is verbatim from those PDFs.

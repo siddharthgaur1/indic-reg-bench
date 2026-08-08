@@ -24,11 +24,12 @@ import re
 import sqlite3
 import sys
 import textwrap
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from indic_reg_bench.numerals import CURRENCY  # noqa: E402
 from task_viability import (  # noqa: E402
     NONE_IMPOSED, PROSE, TABLE, UNCLASSIFIED, WASTE, classify,
 )
@@ -154,6 +155,12 @@ def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
     if cmd.lower().startswith("s"):
         return None
 
+    # 13.1% of single-noticee orders impose more than one penalty - separate
+    # amounts under separate sections on the same person. The scoring unit is
+    # the (name, amount, section) triple, so those are several rows for one
+    # name, and the prompt has to say so or they get silently collapsed to one.
+    print("  one row per (noticee, penalty, section) triple - enter the same")
+    print("  name again if the order penalises them under more than one section")
     noticees = []
     while True:
         n = len(noticees) + 1
@@ -188,9 +195,144 @@ def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
     }
 
 
+AMOUNT = re.compile(
+    CURRENCY + r"\s?[\d][\d,]*(?:\.\d+)?(?:\s*(?:/-|lakhs?|lacs?|crores?))?",
+    re.I,
+)
+
+# Cues used ONLY to spread the sample across the label space. They are never
+# shown and never written: a labeller told "this one looks like a precedent"
+# will agree with it, and T5 exists precisely to measure whether that
+# distinction can be made from the discourse rather than from a nearby keyword.
+T5_CUES = {
+    "disposition": re.compile(
+        r"hereby\s+impose|in\s+exercise\s+of\s+(?:the\s+)?powers?|"
+        r"impose\s+a\s+penalty\s+of", re.I),
+    "submission": re.compile(
+        r"noticee\s+(?:has\s+)?(?:submitted|requested|prayed|contended)|"
+        r"my\s+client|willingness\s+to\s+settle|settlement\s+(?:scheme|application)|"
+        r"lenient\s+view", re.I),
+    "precedent": re.compile(
+        r"hon.?ble\s+(?:SAT|Supreme\s+Court|High\s+Court)|"
+        r"securities\s+appellate\s+tribunal|it\s+was\s+held|"
+        r"v(?:s|s\.|\.)\s+SEBI|appeal\s+no", re.I),
+    "scn": re.compile(
+        r"show\s+cause\s+notice|\bSCN\b|was\s+called\s+upon\s+to\s+show", re.I),
+}
+
+T5_CLASSES = {
+    "i": "imposed",
+    "p": "proposed_by_noticee",
+    "c": "cited_precedent",
+    "s": "scn_proposed",
+    "o": "other",
+}
+
+
+def t5_spans(text: str, per_doc: int, context: int = 380) -> list[dict]:
+    """Pick a spread of currency spans from one order, with surrounding context.
+
+    Orders carry a median of 5 currency amounts and a p90 of 34, so labelling
+    every span is not on. Sampling the first N is worse than useless: the early
+    amounts cluster in the facts section and would make the gold set almost
+    entirely one class.
+
+    So spans are grouped by which cue appears near them and sampled
+    round-robin across those groups. The grouping is a *sampling* device only
+    - it never reaches the labeller, because a displayed guess is a guess the
+    labeller will agree with.
+    """
+    flat = re.sub(r"\s+", " ", text)
+    groups: dict[str, list[dict]] = defaultdict(list)
+
+    for m in AMOUNT.finditer(flat):
+        lo, hi = max(0, m.start() - context), min(len(flat), m.end() + context)
+        window = flat[lo:hi]
+        cue = next((name for name, pat in T5_CUES.items() if pat.search(window)),
+                   "none")
+        groups[cue].append({
+            "span": m.group(0).strip(),
+            "char_start": m.start(),
+            "context": window,
+        })
+
+    # Round-robin so every cue group is represented before any is doubled up.
+    picked: list[dict] = []
+    order = [k for k in ("disposition", "submission", "precedent", "scn", "none")
+             if k in groups]
+    i = 0
+    while len(picked) < per_doc and order:
+        cue = order[i % len(order)]
+        if groups[cue]:
+            picked.append(groups[cue].pop(0))
+        else:
+            order.remove(cue)
+            continue
+        i += 1
+    return picked
+
+
+def label_t5(row: sqlite3.Row, notes: list[str], per_doc: int) -> dict | None:
+    """Attribution: is this amount what was ordered, or what somebody asked for?
+
+    One record per document holding several labelled spans, so the span's
+    position in the order is preserved and a second pass can be compared
+    span-by-span.
+    """
+    spans = t5_spans(row["text"], per_doc)
+    if not spans:
+        return None
+
+    print("\n" + "=" * 78)
+    print(f"  {row['title'][:74]}")
+    print(f"  {row['order_date']}   {row['n_pages']}p   {len(spans)} spans to attribute")
+    print(f"  {row['url'][:74]}")
+    print("=" * 78)
+
+    cmd = ask("[enter]=label  s=skip  q=quit")
+    if cmd.lower().startswith("q"):
+        return "QUIT"  # type: ignore[return-value]
+    if cmd.lower().startswith("s"):
+        return None
+
+    labelled = []
+    for n, sp in enumerate(spans, 1):
+        print(f"\n  --- span {n}/{len(spans)}: {sp['span']} ---")
+        for line in textwrap.wrap(sp["context"], 74):
+            print(f"    {line}")
+        print("\n    i=imposed  p=proposed by noticee  c=cited precedent")
+        print("    s=SCN proposed  o=other  x=skip this span")
+        while True:
+            v = ask("attribution").lower()[:1]
+            if v == "x":
+                break
+            if v in T5_CLASSES:
+                labelled.append({
+                    "span": sp["span"],
+                    "char_start": sp["char_start"],
+                    "attribution": T5_CLASSES[v],
+                })
+                break
+            print("     enter one of i / p / c / s / o / x")
+
+    if not labelled:
+        return None
+
+    note = ask("note - ambiguity and how you resolved it (blank=none)")
+    if note:
+        notes.append(f"{row['url']}: {note}")
+
+    return {
+        "id": row["url"],
+        "order_date": row["order_date"],
+        "gold": {"spans": labelled},
+        "note": note or None,
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task", default="t1", choices=["t1"])
+    ap.add_argument("--task", default="t1", choices=["t1", "t5"])
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--redo", action="store_true",
                     help="re-label already-labelled orders (for self-agreement)")
@@ -201,6 +343,8 @@ def main() -> int:
                          "e.g. --bucket table  or  --bucket 'no penalty'")
     ap.add_argument("--keep-waste", action="store_true",
                     help="include corrigenda and scanned PDFs (excluded by default)")
+    ap.add_argument("--spans-per-doc", type=int, default=4,
+                    help="t5 only: currency spans to attribute per order")
     args = ap.parse_args()
 
     if not args.db.exists():
@@ -257,7 +401,8 @@ def main() -> int:
     written = 0
 
     for row in pool[: args.limit]:
-        rec = label_t1(row, notes)
+        rec = (label_t5(row, notes, args.spans_per_doc) if args.task == "t5"
+               else label_t1(row, notes))
         if rec == "QUIT":
             break
         if rec is None:

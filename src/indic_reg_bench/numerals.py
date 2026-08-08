@@ -36,7 +36,13 @@ UNITS = {
     "seventy": 70, "eighty": 80, "ninety": 90,
 }
 
-CURRENCY = r"(?:Rs\.?|₹|INR)"
+# The backtick is not a typo. Many SEBI PDFs embed the rupee sign in a font
+# whose glyph maps to U+0060 GRAVE ACCENT, so `₹30 crores` extracts as
+# `` ` 30 crores ``. It is the *only* currency marker in 60 of the first 1,241
+# fetched orders (4.8%) and appears alongside `Rs.` in 109 more - so a pattern
+# without it silently drops those documents from every measurement rather than
+# failing loudly on them.
+CURRENCY = r"(?:Rs\.?|₹|INR|`)"
 
 _AMOUNT_RE = re.compile(
     CURRENCY + r"\s*([\d][\d,]*(?:\.\d+)?)\s*(crores?|lakhs?|lacs?|cr\b)?",

@@ -14,7 +14,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from label import operative_window  # noqa: E402
+from indic_reg_bench.numerals import parse_amount  # noqa: E402
+from label import AMOUNT, operative_window, t5_spans  # noqa: E402
 from task_viability import (  # noqa: E402
     CORRIG, NONE_IMPOSED, PROSE, SCANNED, TABLE, classify, matter_key,
     normalise, parse_title,
@@ -180,3 +181,47 @@ def test_table_window_skips_the_noticees_own_plea():
     window = operative_window(text, TABLE)
     assert "Rupees Five Lakhs only" in window
     assert "SCN be dropped" not in window
+
+
+# --- currency extraction -----------------------------------------------------
+
+def test_backtick_is_a_rupee_sign():
+    """Many SEBI PDFs render the rupee glyph as U+0060 GRAVE ACCENT.
+
+    It is the only currency marker in 4.8% of fetched orders. A pattern without
+    it does not fail on those documents - it silently returns nothing, which is
+    how they stayed invisible to every measurement in this repo.
+    """
+    text = "hereby impose a penalty of ` 2,50,000/- (Rupees Two Lakh Fifty Thousand Only)"
+    assert AMOUNT.search(text) is not None
+    assert parse_amount(text) == 250_000
+
+
+def test_standard_currency_forms_still_parse():
+    assert parse_amount("a penalty of Rs. 4,00,000/-") == 400_000
+    assert parse_amount("₹2,00,000/- (Rupees Two Lakh only)") == 200_000
+
+
+def test_t5_samples_across_cue_groups_not_just_the_first_amounts():
+    """Taking the first N spans returns the facts section every time.
+
+    Here the first three amounts are share values in the facts narrative and the
+    imposed penalty is last. A positional sample would never reach it.
+    """
+    text = (
+        "Investigation revealed the company had issued capital of ` 10/- each. "
+        "It then allotted warrants for ` 30 crores and split shares of ` 1/- each. "
+        + ("filler narrative. " * 60) +
+        "The Noticee submitted a willingness to settle for Rs. 1,00,000/-. "
+        + ("filler narrative. " * 60) +
+        "ORDER 33. I, in exercise of the powers conferred upon me, hereby impose "
+        "a penalty of Rs. 5,00,000/- (Rupees Five Lakh Only) on the Noticee."
+    )
+    spans = t5_spans(text, per_doc=4)
+    picked = {s["span"].strip() for s in spans}
+    assert any("5,00,000" in p for p in picked), "imposed penalty must be sampled"
+    assert any("1,00,000" in p for p in picked), "settlement plea must be sampled"
+
+
+def test_t5_returns_nothing_when_there_is_no_currency():
+    assert t5_spans("An order with no amounts at all.", per_doc=4) == []
