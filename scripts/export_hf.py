@@ -91,6 +91,15 @@ if __name__ == "__main__":
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--upload", action="store_true")
     args = ap.parse_args()
+    # A fresh clone has no corpus - order text is not redistributed. Without
+    # this the script dies on a bare sqlite3.OperationalError that says
+    # "unable to open database file" and nothing about how to get one.
+    if not args.db.exists():
+        raise SystemExit(
+            f"no corpus at {args.db}\n"
+            "the corpus is rebuilt locally, not shipped:\n"
+            "  python scripts/scrape_listing.py\n"
+            "  python scripts/fetch_orders.py --fetch-set")
     n_listing, n_sample = export(args.db)
     print(f"listing.csv: {n_listing} rows | benchmark_sample.csv: {n_sample} rows -> {OUT}")
     if args.upload:
