@@ -29,6 +29,20 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Windows consoles default to cp1252, which cannot encode ₹ (U+20B9), the
+# arrows and Symbol-font bullets that SEBI PDFs extract as, or a plain U+2010
+# hyphen. Printing the operative window then raises UnicodeEncodeError and ends
+# the session - on 52.7% of the test split, so more than every other order.
+# `fetch_orders.py` already carries this guard for the same reason; labelling
+# needs it more, because here the unprintable character is usually the currency
+# symbol attached to the number being labelled.
+#
+# No errors="replace" here, unlike the crawler: encoding to UTF-8 cannot fail,
+# and mangling ₹ into "?" in the one view the label is read from would trade a
+# loud crash for a quiet mislabel.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from indic_reg_bench.numerals import CURRENCY  # noqa: E402
 from build_splits import SEED, TEST_FROM_YEAR  # noqa: E402

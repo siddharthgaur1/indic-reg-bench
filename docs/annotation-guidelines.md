@@ -89,6 +89,16 @@ Roughly a quarter of adjudication orders close without any monetary penalty — 
 
 **Rule:** record `penalty_type` as the outcome and leave the amount empty. Do not skip the order, and do not go hunting for an amount that is not there — the labelling CLI flags these with a `NO PENALTY IMPOSED` banner. These orders are also the natural pool for T4 abstention items.
 
+### 3.8 The page header cuts the operative sentence in half
+
+Extraction interleaves each page's running header and footer with the body text, so the operative sentence is routinely split across the page break by a repeat of the order's own title. Real output, Bajaj Pratisthan, 2025-03-27, the first order the labelling CLI serves:
+
+> `...charges established under the provisions of the SEBI Act, I, hereby `**`Adjudication Order in respect of Bajaj Pratisthan Pvt Ltd in the matter of dealings in Illiquid Stock Options at BSE Page 15 of 16`**` impose monetary penalty of ₹ 5,00,000/-...`
+
+`hereby` and `impose` are 120 characters apart, with a page marker between them. **90.9% of test-split operative windows contain a page marker**, so this is the normal case, not an edge one.
+
+**Rule:** read through the interruption; the sentence resumes exactly where it broke. Nothing here is stripped, because a filter aggressive enough to remove a running header would also remove the order title where it is genuinely quoted. It is worth knowing that any system scored on T1 faces the same interruption — that is part of what the benchmark measures.
+
 ---
 
 ## 4. Resolved ambiguities

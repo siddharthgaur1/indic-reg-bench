@@ -7,6 +7,7 @@ against the corpus, not a hypothetical. The comments say which.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -271,3 +272,27 @@ def test_composition_reads_the_columns_cut_splits_selects():
     row = ("url", "2024-01-01", 5, "Adjudication Order in respect of A", 900,
            "ORDER I hereby impose a penalty of Rs. 5,00,000/- on the Noticee.")
     assert composition([row]) == {PROSE: 1}
+
+
+def test_label_cli_survives_a_cp1252_console(tmp_path):
+    """₹ in the operative window used to end the session with a traceback.
+
+    52.7% of the test split hits this - the rupee sign, extraction arrows and
+    Symbol-font bullets are all outside cp1252, which is what a Windows console
+    defaults to. `fetch_orders.py` already guarded against it after the same
+    error killed a crawl at document 1,087; label.py did not.
+    """
+    import subprocess
+
+    repo = Path(__file__).resolve().parent.parent
+    if not (repo / "data" / "corpus.db").exists():
+        pytest.skip("needs the fetched corpus")
+
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    p = subprocess.run(
+        [sys.executable, str(repo / "scripts" / "label.py"),
+         "--task", "t1", "--dry-run", "--limit", "1"],
+        input="q\n", capture_output=True, text=True, env=env, cwd=repo,
+    )
+    assert "UnicodeEncodeError" not in p.stderr, p.stderr[-600:]
+    assert p.returncode == 0
