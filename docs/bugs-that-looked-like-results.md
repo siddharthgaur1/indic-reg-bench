@@ -1,13 +1,13 @@
-# Four bugs that looked like results
+# Five bugs that looked like results
 
 *Draft. Written against `indic-reg-bench` at commit `9c89173` and after. Numbers
 are reproducible from the repo; every one was measured, not estimated.*
 
 I am building a benchmark for Indian regulatory document understanding: 2,006
 SEBI adjudication orders, five tasks, a gold set that does not exist yet. In
-the course of getting it to the point where labelling could start, four bugs
+the course of getting it to the point where labelling could start, five bugs
 turned up. What they have in common is that none of them threw an error at the
-moment they mattered, and all four would have produced a number I would have
+moment they mattered, and all five would have produced a number I would have
 published.
 
 That is the interesting property. A crash is a bug you find. These are the
@@ -146,7 +146,7 @@ The docstring said "exact match on the value". The code did exact match on the
 repo already had a numeral module built precisely because of that. The scorer
 did not use it.
 
-**Why it would have published.** This is the worst of the four. It deflates
+**Why it would have published.** This is the worst of them. It deflates
 every system in the same direction, so the *ranking* stays plausible and only
 the absolute numbers are wrong. A leaderboard where everything scores 40% looks
 like a hard benchmark. It reads as a finding — "these tasks are difficult" —
@@ -166,6 +166,50 @@ answering, and the settlement-plea amount must not equal the imposed one.
 
 ---
 
+## 5. The baseline was weak because I under-specified it, not because the model couldn't read
+
+Having wired a local model up, I ran it over 25 real orders — the first time
+either baseline had seen anything but a synthetic fixture. Every single order
+came back with the wrong thing in `charging_section`:
+
+```
+'REGULATIONS 3(A), (B), (C), (D), 4(1) AND 4(2)(A) OF PFUTP REGULATIONS'
+```
+
+Zero of 25 produced a section from the label set the task actually scores
+against (`15HA`, `15HB`, and six others). Read quickly, that is a result: *small
+models cannot identify charging provisions in Indian regulatory text*. It is a
+tidy finding and it would have gone in a table.
+
+My prompt said `"charging_section": str|null` and defined it nowhere. The
+distinction it needs — the penalising section of the SEBI Act, as against the
+regulation that was violated — is drawn explicitly in the annotation
+guidelines, for the human annotator. I gave the model strictly less than I give
+a person and then measured it as if the field were hard. After adding one
+sentence: `15HA` ×5, `15HB` ×1, one null.
+
+Then the same run showed a second one. `violated_provisions` came back as the
+string `"PFUTP, PIT"` where a list was specified, and
+
+```python
+[str(p) for p in "PFUTP, PIT"]
+```
+
+iterates it into single characters. `format: json` guarantees valid JSON; it
+does not guarantee the *shape* you asked for. A provisions list of
+`['P','F','U','T','P',...]` scores near zero and reads as a comprehension
+failure rather than a type error.
+
+**Why it would have published.** This is the mirror image of a rigged
+benchmark, and it is the failure mode nobody guards against. Everyone knows not
+to flatter a system you built. Almost nobody checks whether they have crippled
+the baseline they intend to beat — and an artificially weak baseline makes your
+own numbers look better, which is the same corruption pointing the other way.
+Both of these were invisible on a fixture and obvious on the tenth real
+document.
+
+---
+
 ## What connects them
 
 Every one was found by running something rather than reading something.
@@ -175,15 +219,17 @@ Every one was found by running something rather than reading something.
 - The encoding crash: by starting a real labelling session.
 - The scoring bug: by pointing a model at it and disbelieving the first bad
   number.
+- The baseline bugs: by running it on real documents instead of a fixture that
+  I had written to be clean.
 
-Three of the four had passing tests over the exact code involved. The tests
+Three of them had passing tests over the exact code involved. The tests
 were not wrong. They were checking the thing that was easy to check —
 `classify()` returns the right bucket, `operative_window()` finds the right
 paragraph, `score_numeric()` counts matches correctly — while the defect lived
 one level up, in which inputs got selected, what the console could render, and
 what "match" meant.
 
-The uncomfortable version: I would have shipped all four, and every one of them
+The uncomfortable version: I would have shipped all five, and every one of them
 would have come out as a number with a sensible story attached. The benchmark's
 headline claim — that naive first-amount extraction disagrees with the
 operative paragraph in 48.6% of orders — has survived two extraction bug fixes
