@@ -5,10 +5,13 @@ Every string marked "real" is verbatim from a fetched SEBI order.
     python -m pytest tests/ -q
 """
 
+import pytest
+
 from indic_reg_bench.numerals import amounts_agree, parse_amount, words_to_number
 from indic_reg_bench.scoring import (majority_class_baseline, normalise_name,
-                                     score_abstention, score_extraction,
-                                     score_labels, score_numeric)
+                                     same_answer, score_abstention,
+                                     score_extraction, score_labels,
+                                     score_numeric)
 
 
 # ── Indian digit grouping ─────────────────────────────────────────
@@ -119,3 +122,38 @@ def test_abstention_reports_both_sides_separately():
     never_abstain = score_abstention(["Rs. 4,00,000", "guess", "guess"], gold)
     assert never_abstain["answerable_accuracy"] == 1.0
     assert never_abstain["abstention_rate"] == 0.0
+
+
+# --- T3/T4 answer normalisation ----------------------------------------------
+
+@pytest.mark.parametrize("pred,gold", [
+    (500000, 500000),
+    ("500000", 500000),
+    ("5,00,000", 500000),
+    ("` 5,00,000/-", 500000),
+    ("Rs. 5,00,000/- (Rupees Five Lakh only)", 500000),
+    ("not stated", "Not Stated"),
+    ("March 27, 2025", "march 27, 2025"),
+])
+def test_same_answer_ignores_how_the_amount_is_written(pred, gold):
+    """llama3.2 answered '` 5,00,000/-(Rupees Five Lakh only)' - the operative
+    text, verbatim and correct - and scored 0 against a gold of 500000.
+
+    Every system would have been deflated the same way, which is why it would
+    never have looked like a bug.
+    """
+    assert same_answer(pred, gold)
+
+
+@pytest.mark.parametrize("pred,gold", [
+    (500000, 100000),          # the settlement plea, not the penalty
+    (None, 500000),
+    ("", 500000),
+    ("not stated", 500000),    # abstaining is not a right answer
+    (500000, "not stated"),    # nor is answering an unanswerable
+    ("45 days", 45),           # a unit is part of the answer
+    ("March 27, 2025", "March 28, 2025"),
+])
+def test_same_answer_does_not_grade_on_a_curve(pred, gold):
+    """Normalisation must not become partial credit."""
+    assert not same_answer(pred, gold)

@@ -108,3 +108,35 @@ def amounts_agree(numeric: str, words: str) -> bool | None:
     if a is None or b is None:
         return None
     return a == b
+
+
+_BARE_NUMBER = re.compile(r"[\s.]*([\d][\d,]*)(?:\.0*)?[\s/\-]*\Z")
+
+
+def parse_answer(v: object) -> int | None:
+    """Read an amount out of a *system's answer*, as opposed to a document.
+
+    `parse_amount` requires a currency marker, and must: in a 36,000-character
+    order an unmarked number is as likely to be a page number, a regulation or
+    a date. An answer carries no such ambiguity - it is already an answer - so
+    a bare integer counts here and does not there.
+
+    Returns None for anything that is not a single amount, which leaves dates,
+    names and `not stated` to be compared as strings.
+
+        parse_answer(500000)                    -> 500000
+        parse_answer("5,00,000")                -> 500000
+        parse_answer("` 5,00,000/- (Rupees Five Lakh only)") -> 500000
+        parse_answer("45 days")                 -> None
+    """
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(v) if v.is_integer() else None
+    marked = parse_amount(str(v))
+    if marked is not None:
+        return marked
+    m = _BARE_NUMBER.fullmatch(str(v))
+    return int(m.group(1).replace(",", "")) if m else None

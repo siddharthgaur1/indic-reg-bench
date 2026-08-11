@@ -7,6 +7,7 @@ produced here means anything about any system.
 """
 
 import json
+from pathlib import Path
 
 from indic_reg_bench.adapter import load_system
 from indic_reg_bench.evaluate import format_report, run_task
@@ -86,3 +87,26 @@ def test_regex_baseline_runs_on_real_text():
     out = system.predict("t1_extraction", {"text": row[0]})
     assert "noticees" in out
     assert json.dumps(out)  # serialisable
+
+
+def test_every_task_scores_end_to_end_on_the_smoke_fixture():
+    """The harness had never been run across all five tasks at once.
+
+    The gold set is empty, so `evaluate` had nothing to walk and the wiring
+    between adapter, runner and the five scorers was unexercised. This fixture
+    is synthetic and tiny - it proves the path, it measures nothing.
+    """
+    from indic_reg_bench.evaluate import evaluate
+    from indic_reg_bench.scoring import SCORERS
+
+    repo = Path(__file__).resolve().parent.parent
+    results = evaluate(str(repo / "baselines" / "regex_baseline.py"),
+                       repo / "tests" / "fixtures" / "smoke", list(SCORERS))
+
+    assert [r.task for r in results] == list(SCORERS)
+    assert all(r.errors == 0 for r in results), [r.error_examples for r in results]
+    assert all(r.metrics for r in results)
+    # The floor must stay a floor: the regex baseline takes the first amount in
+    # the document, which the fixture makes the noticee's settlement plea.
+    t3 = next(r for r in results if r.task == "t3_numeric")
+    assert t3.metrics["exact_match"] == 0.0

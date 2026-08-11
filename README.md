@@ -17,11 +17,12 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 |---|---|
 | Listing metadata | ✅ 11,957 orders, Nov 2004 – Jul 2026 — [on HuggingFace](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench) |
 | Document fetcher | ✅ working, resumable |
-| Evaluation harness | ✅ pip-installable, 34 tests passing in CI |
+| Evaluation harness | ✅ pip-installable, 72 tests passing in CI, all five tasks exercised end to end |
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |
 | Gold set | ❌ 0 of a target **200** |
+| Baselines | ✅ two implemented and runnable — regex floor, and a local LLM via Ollama (free, no key) |
 | Baseline scores | ❌ blocked on the gold set |
 
 **The target was 400–600 and is now 200.** That number was set against the whole
@@ -135,6 +136,13 @@ Cost and latency are reported alongside accuracy. A system that wins by two poin
 ## Leaderboard
 
 Empty, by design. It gets populated when the gold set exists and baselines are run — trivial floors, frontier APIs, open models, and the maintainer's own `rag-hybrid-search` pipeline, published honestly including where they lose.
+
+Two baselines are already wired and runnable against any gold file:
+
+    indic-reg-bench evaluate --system baselines/regex_baseline.py
+    ollama pull llama3.2 && indic-reg-bench evaluate --system baselines/llm_baseline.py
+
+The LLM baseline runs on localhost, so it costs nothing and needs no key. It is a *system under test*, never a source of labels: a model that pre-fills the gold set and then appears on the leaderboard is a benchmark measuring its own annotator.
 
 | System | T1 | T2 | T3 | T4 | T5 | Cost | Latency |
 |---|---|---|---|---|---|---|---|

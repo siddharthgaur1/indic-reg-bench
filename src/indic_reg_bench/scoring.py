@@ -13,6 +13,8 @@ import re
 import unicodedata
 from collections import Counter
 
+from .numerals import parse_answer
+
 # ── name normalisation ────────────────────────────────────────────
 # Matched *after* punctuation is stripped, so "M/s." has already become "m s".
 _HONORIFICS = r"^(?:mr|mrs|ms|shri|smt|sri|m\s+s|dr|late|the)\s+"
@@ -110,12 +112,33 @@ def majority_class_baseline(gold: list[str], label_set: list[str]) -> dict[str, 
 
 
 # ── T3: numeric ───────────────────────────────────────────────────
+def same_answer(pred: object, gold: object) -> bool:
+    """Exact match on the *value*, not on the spelling of it.
+
+    T3 and T4 were comparing `str(p).strip() == str(g).strip()`, so a system
+    that answered `` ` 5,00,000/- (Rupees Five Lakh only) `` - the operative
+    text, verbatim and correct - was scored a miss against a gold of `500000`.
+    That is a formatting penalty dressed up as a comprehension one, and it
+    would have deflated every entry on the leaderboard in the same direction,
+    which is the kind of error that never looks like an error.
+
+    Amount-vs-amount compares as integers. Anything else falls back to
+    case-folded string equality, so `not stated` and dates are unaffected.
+    """
+    if pred is None:
+        return False
+    p, g = parse_answer(pred), parse_answer(gold)
+    if p is not None and g is not None:
+        return p == g
+    return str(pred).strip().casefold() == str(gold).strip().casefold()
+
+
 def score_numeric(pred: list, gold: list) -> dict[str, float]:
     """Exact match. A penalty total is right or wrong; partial credit would be
     a made-up quantity."""
     if not gold:
         return {"exact_match": 0.0, "n": 0}
-    hits = sum(1 for p, g in zip(pred, gold) if p is not None and str(p).strip() == str(g).strip())
+    hits = sum(1 for p, g in zip(pred, gold) if same_answer(p, g))
     return {"exact_match": round(hits / len(gold), 4), "n": len(gold)}
 
 
@@ -134,7 +157,7 @@ def score_abstention(pred: list[str], gold: list[str]) -> dict[str, float]:
     ans_g = [g for g in gold if g.strip().lower() != ABSTAIN]
     unans = [p for p, g in zip(pred, gold) if g.strip().lower() == ABSTAIN]
 
-    acc = (sum(1 for p, g in zip(ans_p, ans_g) if p.strip().lower() == g.strip().lower())
+    acc = (sum(1 for p, g in zip(ans_p, ans_g) if same_answer(p, g))
            / len(ans_g)) if ans_g else 0.0
     abst = (sum(1 for p in unans if p.strip().lower() == ABSTAIN) / len(unans)) if unans else 0.0
     return {"answerable_accuracy": round(acc, 4), "abstention_rate": round(abst, 4),
