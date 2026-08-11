@@ -131,6 +131,14 @@ indic-reg-bench evaluate --system baselines/regex_baseline.py --data data/splits
 
 Cost and latency are reported alongside accuracy. A system that wins by two points at forty times the cost has not won.
 
+**Before the gold set exists**, `evaluate` has nothing to score against. To run a system over real orders anyway — the same orders, in the same sequence, that `label.py` will serve — use:
+
+```bash
+python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 200
+```
+
+Predictions land in `predictions/<system>.<task>.jsonl`, keyed by order id, so when labels arrive scoring is a join rather than a re-run. Resumable; the local model runs at roughly 90 s/order on CPU. Predictions are never written to `labels/` and nothing in the labelling path reads them.
+
 **No overall score is produced.** The tasks measure different things, and averaging them hides which one a system failed.
 
 ## Leaderboard
