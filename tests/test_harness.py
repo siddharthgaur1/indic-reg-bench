@@ -5,10 +5,13 @@ Every string marked "real" is verbatim from a fetched SEBI order.
     python -m pytest tests/ -q
 """
 
+import re
+
 import pytest
 
 from indic_reg_bench.numerals import amounts_agree, parse_amount, words_to_number
 from indic_reg_bench.scoring import (majority_class_baseline, normalise_name,
+                                     normalise_section,
                                      same_answer, score_abstention,
                                      score_extraction, score_labels,
                                      score_numeric)
@@ -157,3 +160,38 @@ def test_same_answer_ignores_how_the_amount_is_written(pred, gold):
 def test_same_answer_does_not_grade_on_a_curve(pred, gold):
     """Normalisation must not become partial credit."""
     assert not same_answer(pred, gold)
+
+
+@pytest.mark.parametrize("value,expect", [
+    ("15HA", "15HA"),
+    ("15ha", "15HA"),
+    ("15HA of the SEBI Act, 1992", "15HA"),      # real llama3.2 output
+    ("Section 15A(a) of the SEBI Act", "15A(A)"),
+    ("15A (b)", "15A(B)"),
+    (None, ""),
+])
+def test_normalise_section_finds_the_section_inside_the_citation(value, expect):
+    assert normalise_section(value) == expect
+
+
+@pytest.mark.parametrize("value", [
+    "Section 446(1) of the Companies Act, 1956",   # real, and genuinely wrong
+    "Regulations 3(a), (b), (c) and (d) of PFUTP Regulations",
+])
+def test_normalise_section_leaves_a_wrong_answer_wrong(value):
+    """Normalisation must not launder a non-section into a section."""
+    assert normalise_section(value) != "15HA"
+    assert not re.fullmatch(r"15[A-Z]{1,2}(\([A-Z]\))?", normalise_section(value))
+
+
+def test_t1_section_padding_is_not_scored_as_a_misread():
+    """llama3.2 returned '15HA of the SEBI Act, 1992' on a real order.
+
+    Under the old fold that became '15HAOFTHESEBIACT,1992' and missed against
+    '15HA' - the same formatting-as-comprehension error as T3/T4, one layer in.
+    """
+    gold = {"noticees": [{"name": "Acme Traders Pvt Ltd", "penalty_inr": 500000,
+                          "charging_section": "15HA"}]}
+    pred = {"noticees": [{"name": "Acme Traders", "penalty_inr": 500000,
+                          "charging_section": "15HA of the SEBI Act, 1992"}]}
+    assert score_extraction(pred, gold)["full_triple_f1"] == 1.0

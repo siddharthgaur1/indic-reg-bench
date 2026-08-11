@@ -53,6 +53,33 @@ def _multiset_tp(pred: list, gold: list) -> int:
     return sum(min(cp[k], cg[k]) for k in cp)
 
 
+# ── charging sections ─────────────────────────────────────────────
+# The penalising sections of the SEBI Act. Leading \b so "115HA" does not match
+# at offset 1; no trailing \b, because after the ")" of "15A(a)" the next
+# character is a space and two non-word characters make no boundary - which
+# silently truncated "15A(a)" to "15A" and quietly merged two distinct sections.
+_SECTION = re.compile(r"\b(15[A-Z]{1,2}(?:\s*\([a-z]\))?)", re.I)
+
+
+def normalise_section(value: object) -> str:
+    """`"15HA"`, `"15HA of the SEBI Act, 1992"` and `"Section 15HA"` are one answer.
+
+    Systems return the section with its statute attached, because that is how
+    the order writes it. Folding whitespace and case is not enough - the old
+    normalisation turned the second of those into `15HAOFTHESEBIACT,1992` and
+    scored it against `15HA` as a miss, which grades the padding rather than
+    the reading.
+
+    Anything with no section token in it is returned folded but intact, so a
+    genuinely wrong answer ("Section 446(1) of the Companies Act") stays wrong.
+    """
+    s = str(value or "")
+    m = _SECTION.search(s)
+    if m:
+        return m.group(1).upper().replace(" ", "")
+    return s.upper().replace(" ", "")
+
+
 # ── T1: structured extraction ─────────────────────────────────────
 def score_extraction(pred: dict, gold: dict) -> dict[str, float]:
     """Field-level scores. Never blended - a strong name score must not hide a
@@ -62,7 +89,7 @@ def score_extraction(pred: dict, gold: dict) -> dict[str, float]:
 
     def triples(d):
         return [(normalise_name(n.get("name", "")), n.get("penalty_inr"),
-                 (n.get("charging_section") or "").upper().replace(" ", ""))
+                 normalise_section(n.get("charging_section")))
                 for n in d.get("noticees", []) or []]
 
     tp, tg = triples(pred), triples(gold)
