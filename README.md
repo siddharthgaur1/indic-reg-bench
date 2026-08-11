@@ -21,8 +21,16 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |
-| Gold set | ❌ 0 of a target 400–600 |
+| Gold set | ❌ 0 of a target 400–600 — but see below, that target no longer fits the pool |
 | Baseline scores | ❌ blocked on the gold set |
+
+**The 400–600 target predates the split fix and needs restating.** Labelling now
+draws from the test split by default, which holds 422 orders — 408 after
+corrigenda and scanned PDFs. So 600 is unreachable and 400 is a census of the
+test set, not a sample of it, leaving nothing unlabelled to grow into. Either
+the target comes down to a real sample (~150–200, still enough to separate
+systems on macro-F1) or the split moves earlier to widen the pool. Not yet
+decided; recorded here rather than discovered halfway through annotation.
 
 **What the corpus already tells you, before any label exists** — measured over
 all 2,006 fetched documents, not assumed, and written up in
@@ -50,6 +58,15 @@ all 2,006 fetched documents, not assumed, and written up in
   unrelated matters, because brokers are repeat players. Reinstated for v1.1.
 - **96.6% of the corpus is labellable.** Only corrigenda (1.0%) and scanned
   PDFs with no text layer (2.4%) are waste.
+- **The temporal split moves document format, not just dates.** SEBI began
+  issuing multi-noticee penalties as tables in 2024: the table-scrambled bucket
+  runs 0–6% every year from 2005 to 2023, then **27.7% (2024), 10.5% (2025),
+  29.1% (2026)**. Across the cut that is **1.7% of train against 16.1% of
+  test** — the hardest layout for penalty attribution, and a system tuned on
+  train has barely seen it. This is the benchmark's most demanding property and
+  it is deliberate: a regulatory system is built on past orders and run on new
+  ones, formats included. `build_splits.py --splits` prints the full
+  composition on every run so it stays visible.
 
 ## Why these five tasks
 

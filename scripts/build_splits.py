@@ -24,8 +24,12 @@ import argparse
 import json
 import random
 import sqlite3
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from task_viability import classify  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DB = REPO / "data" / "corpus.db"
@@ -76,10 +80,16 @@ def write_fetch_set(db: Path, urls: list[str]) -> None:
     print(f"fetch_set now holds {n} urls - run: python scripts/fetch_orders.py --fetch-set")
 
 
+def composition(rows: list[tuple]) -> Counter:
+    """Bucket mix of a split, as `task_viability.classify` sees it."""
+    return Counter(classify(r[3], r[4], r[5]) for r in rows)
+
+
 def cut_splits(db: Path) -> None:
     conn = sqlite3.connect(db)
     rows = conn.execute(
-        "SELECT url, order_date, n_pages FROM order_text WHERE order_date IS NOT NULL").fetchall()
+        "SELECT url, order_date, n_pages, title, n_chars, text "
+        "FROM order_text WHERE order_date IS NOT NULL").fetchall()
     conn.close()
     if not rows:
         print("no fetched text yet")
@@ -95,7 +105,17 @@ def cut_splits(db: Path) -> None:
     print(f"temporal split at {TEST_FROM_YEAR}: train={len(train)} test={len(test)}")
     print("  train years:", sorted(Counter(int(r[1][:4]) for r in train)))
     print("  test  years:", sorted(Counter(int(r[1][:4]) for r in test)))
-    print(f"wrote {out}/train_ids.json, {out}/test_ids.json")
+
+    # A temporal split does not only move dates, it moves document *formats*.
+    # SEBI began issuing multi-noticee penalties as tables around 2024, so the
+    # bucket mix is not stable across the cut. Printed on every run because a
+    # split whose composition is never inspected is how that goes unnoticed.
+    print(f"\ncomposition (train n={len(train)} / test n={len(test)}):")
+    tr, te = composition(train), composition(test)
+    for bucket in sorted(set(tr) | set(te)):
+        a, b = tr[bucket], te[bucket]
+        print(f"  {100 * a / len(train):5.1f}%  {100 * b / len(test):5.1f}%   {bucket}")
+    print(f"\nwrote {out}/train_ids.json, {out}/test_ids.json")
 
 
 if __name__ == "__main__":

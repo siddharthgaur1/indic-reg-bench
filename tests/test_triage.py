@@ -255,3 +255,19 @@ def test_t5_samples_across_cue_groups_not_just_the_first_amounts():
 
 def test_t5_returns_nothing_when_there_is_no_currency():
     assert t5_spans("An order with no amounts at all.", per_doc=4) == []
+
+
+# --- split composition -------------------------------------------------------
+
+def test_composition_reads_the_columns_cut_splits_selects():
+    """`composition` indexes the row tuple positionally.
+
+    Reordering the SELECT in `cut_splits` would silently feed the title into
+    `n_chars` and classify everything as one bucket, which looks like a finding
+    rather than a bug. This pins the contract between the two.
+    """
+    from build_splits import composition
+
+    row = ("url", "2024-01-01", 5, "Adjudication Order in respect of A", 900,
+           "ORDER I hereby impose a penalty of Rs. 5,00,000/- on the Noticee.")
+    assert composition([row]) == {PROSE: 1}
