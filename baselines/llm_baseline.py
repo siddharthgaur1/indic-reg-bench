@@ -63,7 +63,18 @@ TASK_PROMPT = {
         '"penalty_type":"monetary"|"debarment"|"warning"|"none"|"other",'
         '"total_penalty_inr":int}. One entry per (noticee, penalty, section) '
         "triple; repeat a name penalised under two sections. penalty_inr is a "
-        "plain integer of rupees, no commas."
+        "plain integer of rupees, no commas. "
+        # Without this the model returns the violated regulation here on every
+        # order - 'Regulations 3(a),(b),(c),(d), 4(1) of PFUTP Regulations' -
+        # and never a section, so the field scores zero for a reason that is
+        # about the prompt rather than about reading. The annotation guidelines
+        # draw this distinction for a human annotator; withholding it from the
+        # model makes the baseline artificially weak, which is as misleading as
+        # making it artificially strong.
+        "charging_section is the penalising section of the SEBI Act - one of "
+        "15A(a) 15A(b) 15A(c) 15EA 15EB 15G 15HA 15HB - NOT the regulation "
+        "that was violated. The PFUTP/PIT/SAST regulations go in "
+        "violated_provisions."
     ),
     "t2_charging_section": (
         "Which section is the penalty imposed under? Answer with the section "
@@ -143,10 +154,18 @@ class System:
                     "charging_section": (str(n["charging_section"]).upper()
                                          if n.get("charging_section") else None),
                 })
+            # `format: json` guarantees valid JSON, not the shape asked for.
+            # Models routinely return "PFUTP, PIT" where a list was specified,
+            # and `[str(p) for p in "PFUTP"]` iterates it into characters - a
+            # provisions list of 'P','F','U','T','P' that scores near zero and
+            # looks like a comprehension failure.
+            raw_provisions = obj.get("violated_provisions") or []
+            if isinstance(raw_provisions, str):
+                raw_provisions = [p for p in re.split(r"[,;]", raw_provisions) if p.strip()]
             total = _coerce_int(obj.get("total_penalty_inr"))
             return {
                 "noticees": noticees,
-                "violated_provisions": [str(p) for p in (obj.get("violated_provisions") or [])],
+                "violated_provisions": [str(p).strip() for p in raw_provisions],
                 "penalty_type": obj.get("penalty_type") or None,
                 # Falling back to the sum keeps a model that itemises correctly
                 # but cannot add from being scored as if it read nothing.

@@ -110,3 +110,39 @@ def test_every_task_scores_end_to_end_on_the_smoke_fixture():
     # the document, which the fixture makes the noticee's settlement plea.
     t3 = next(r for r in results if r.task == "t3_numeric")
     assert t3.metrics["exact_match"] == 0.0
+
+
+def test_llm_baseline_does_not_shred_a_string_into_characters():
+    """`format: json` guarantees valid JSON, not the shape you asked for.
+
+    llama3.2 returned violated_provisions as "PFUTP, PIT" on real orders, and
+    the adapter iterated it into ['P','F','U','T','P',...] - a provisions list
+    that scores near zero and reads as a comprehension failure rather than a
+    type mismatch.
+    """
+    import sys
+
+    repo = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(repo / "baselines"))
+    import llm_baseline
+
+    system = llm_baseline.System()
+    payload = json.dumps({
+        "noticees": [{"name": "A Trader", "penalty_inr": "5,00,000",
+                      "charging_section": "15ha"}],
+        "violated_provisions": "PFUTP, PIT",
+        "penalty_type": "monetary",
+        "total_penalty_inr": None,
+    })
+    original = llm_baseline._ask
+    llm_baseline._ask = lambda prompt, want_json: payload
+    try:
+        out = system.predict("t1_extraction", {"text": "irrelevant"})
+    finally:
+        llm_baseline._ask = original
+
+    assert out["violated_provisions"] == ["PFUTP", "PIT"]
+    assert out["noticees"][0]["penalty_inr"] == 500000
+    assert out["noticees"][0]["charging_section"] == "15HA"
+    # total was null; itemised penalties must still add up rather than vanish
+    assert out["total_penalty_inr"] == 500000
