@@ -134,6 +134,33 @@ The last two are what make an unanswerable item hard: SEBI *does* order disgorge
 
 ---
 
+## 5a. Which orders get labelled
+
+Not the ones that come first. `label.py` draws with `random.Random(42)` from the
+**test split** (2023+), which is what a leaderboard scores.
+
+Both halves of that were wrong until the sampling frame was checked against the
+corpus, and the failure is worth recording because it was invisible:
+
+- SEBI URLs embed the month as a word (`/apr-2009/`, `/sep-2025/`), so ordering
+  by URL sorts alphabetically **by month abbreviation**. The first 50 orders were
+  all from April, all 2009–2014. The corpus spans 2005–2026 at ~100 orders/year.
+- That prefix contained **1 "no penalty imposed" order in 50 (2%)**, against a
+  true rate of **19%** — a 9× under-sampling of the category §3.7 exists for and
+  the pool T4 abstention items are drawn from.
+- Drawing from the whole corpus rather than the test split would have put ~39 of
+  50 labels in train, leaving ~11 to score against.
+
+Seeded shuffle over the test split gives all 12 months, all four test years, and
+bucket proportions within sampling noise of the split.
+
+**Rule:** do not reorder, hand-pick, or skip forward to "more interesting"
+orders. The sequence is reproducible on purpose — a gold set chosen by what
+looked worth labelling measures the annotator's taste. Use `--bucket` to
+deliberately top up a category, and say so in the dataset card when you do.
+
+---
+
 ## 6. Self-agreement protocol
 
 1. Label 50 orders (pass 1).

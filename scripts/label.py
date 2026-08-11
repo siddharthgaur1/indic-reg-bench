@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from indic_reg_bench.numerals import CURRENCY  # noqa: E402
+from build_splits import SEED, TEST_FROM_YEAR  # noqa: E402
 from task_viability import (  # noqa: E402
     NONE_IMPOSED, PROSE, TABLE, UNCLASSIFIED, WASTE, classify,
 )
@@ -459,6 +460,9 @@ def main() -> int:
                     help="re-label already-labelled orders (for self-agreement)")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--stats", action="store_true")
+    ap.add_argument("--split", default="test", choices=["test", "train", "all"],
+                    help="which temporal split to draw from (default: test, "
+                         "which is what the leaderboard scores)")
     ap.add_argument("--bucket", default=None,
                     help="only orders whose triage bucket matches this substring, "
                          "e.g. --bucket table  or  --bucket 'no penalty'")
@@ -508,6 +512,26 @@ def main() -> int:
         if before != len(rows):
             print(f"skipping {before - len(rows)} corrigenda / scanned PDFs "
                   f"(--keep-waste to include)")
+
+    # SEBI URLs embed the month as a name (`/apr-2009/`, `/sep-2025/`), so
+    # `ORDER BY url` sorts alphabetically by month abbreviation. Taking the
+    # first N off that list gave 50 April orders from 2009-2014 — a gold set
+    # stratified by nothing except the spelling of "April". Shuffle with a
+    # fixed seed instead: reproducible, and the bucket mix comes out at corpus
+    # proportions rather than 2% "no penalty" against a true rate of 19%.
+    #
+    # Shuffle BEFORE removing already-labelled orders, so resuming a session
+    # continues the same sequence instead of re-drawing a different one.
+    random.Random(SEED).shuffle(rows)
+
+    # The leaderboard scores the test split. Drawing from the whole corpus puts
+    # ~77% of a hard-won gold set in train, where it grades nothing.
+    if args.split != "all":
+        want_test = args.split == "test"
+        rows = [r for r in rows if r["order_date"]
+                and (int(r["order_date"][:4]) >= TEST_FROM_YEAR) == want_test]
+        print(f"restricted to the {args.split} split "
+              f"({'>=' if want_test else '<'}{TEST_FROM_YEAR}): {len(rows)} orders")
 
     # In --redo the point is to re-label what was already done, a week later.
     pool = [r for r in rows if (r["url"] in done) == bool(args.redo)]
