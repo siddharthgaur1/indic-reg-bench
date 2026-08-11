@@ -17,7 +17,7 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 |---|---|
 | Listing metadata | ✅ 11,957 orders, Nov 2004 – Jul 2026 — [on HuggingFace](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench) |
 | Document fetcher | ✅ working, resumable |
-| Evaluation harness | ✅ pip-installable, 72 tests passing in CI, all five tasks exercised end to end |
+| Evaluation harness | ✅ pip-installable, 84 tests passing in CI, all five tasks exercised end to end |
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |

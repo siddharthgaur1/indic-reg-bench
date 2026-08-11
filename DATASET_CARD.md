@@ -24,7 +24,7 @@ A benchmark for Indian regulatory document understanding, built on SEBI (Securit
 | Gold labels | **none — 0 examples** |
 | Silver labels | none |
 | Splits | temporal, defined (train <2023 / test ≥2023); not yet populated |
-| Harness | working, pip-installable, 72 tests passing |
+| Harness | working, pip-installable, 84 tests passing |
 | Baselines | regex floor and a local-LLM baseline implemented and runnable; **no scores, because scoring needs gold labels** |
 
 **On the date range.** The listing index spans Nov 2004 – Jul 2026, but the
