@@ -146,3 +146,24 @@ def test_llm_baseline_does_not_shred_a_string_into_characters():
     assert out["noticees"][0]["charging_section"] == "15HA"
     # total was null; itemised penalties must still add up rather than vanish
     assert out["total_penalty_inr"] == 500000
+
+
+def test_silver_labels_cannot_be_reported_as_a_benchmark_result(tmp_path):
+    """The stamp has to be load-bearing, not decorative.
+
+    build_eval_set.py marks model-written labels `model:<system>`. If the
+    report did not act on that, a silver run would print numbers formatted
+    exactly like a real result, and the context would be lost the moment
+    someone pasted them into a README.
+    """
+    from indic_reg_bench.evaluate import format_report, run_task
+
+    system = _write_system(tmp_path)
+    examples = [{"id": "x", "echo": 500000, "gold": 500000,
+                 "label_source": "model:ollama-llama3.2"}]
+    report = format_report([run_task(system, "t3_numeric", examples)])
+    assert "NOT A BENCHMARK RESULT" in report
+    assert "model:ollama-llama3.2" in report
+
+    human = [{"id": "x", "echo": 500000, "gold": 500000}]
+    assert "NOT A BENCHMARK" not in format_report([run_task(system, "t3_numeric", human)])

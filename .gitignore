@@ -7,6 +7,13 @@ data/pdfs/
 # Same reason as above: order text stays local.
 labels/.reading/
 
+# Evaluation sets built by scripts/build_eval_set.py. Each record embeds the
+# full order text next to its label - that is what `evaluate` needs, and
+# exactly what this repo does not redistribute. The *_ids.json lists beside
+# them carry no text and stay tracked. Rebuild the rest locally.
+data/splits/*/
+predictions/.run.log
+
 __pycache__/
 *.py[cod]
 *.egg-info/

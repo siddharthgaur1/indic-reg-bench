@@ -36,6 +36,10 @@ class RunResult:
     cost_usd: float | None
     errors: int
     error_examples: list = field(default_factory=list)
+    # Where the gold came from. "human" or "model:<system>" - see
+    # scripts/build_eval_set.py. Carried on the result so it survives into
+    # --json output, not just into the printed report.
+    label_source: str = "human"
 
 
 def _score(task: str, preds: list, golds: list) -> dict:
@@ -90,6 +94,8 @@ def run_task(system: System, task: str, examples: list[dict]) -> RunResult:
         cost_usd=getattr(system, "cost_usd", None),
         errors=errs,
         error_examples=err_ex,
+        label_source=next((e["label_source"] for e in examples
+                           if e.get("label_source", "human") != "human"), "human"),
     )
 
 
@@ -115,6 +121,14 @@ def evaluate(system_path: str, data_dir: Path, tasks: list[str]) -> list[RunResu
 def format_report(results: list[RunResult]) -> str:
     """Per-task, never a single headline number."""
     lines = []
+    # Scoring against model-written labels is a pipeline check, not a result -
+    # and where the labelling model and the system under test are the same
+    # model, it measures nothing at all. The banner is loud on purpose: a
+    # number that reaches a README has lost the context it was produced in.
+    tainted = sorted({r.label_source for r in results if r.label_source != "human"})
+    if tainted:
+        lines.append("!! NOT A BENCHMARK RESULT - labels came from " + ", ".join(tainted))
+        lines.append("!! Silver labels exercise the harness. They do not measure a system.")
     for r in results:
         lines.append(f"\n{r.task}  (n={r.n}, system={r.system})")
         for k, v in r.metrics.items():
