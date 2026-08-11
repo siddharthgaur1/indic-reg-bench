@@ -137,7 +137,27 @@ Cost and latency are reported alongside accuracy. A system that wins by two poin
 python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 200
 ```
 
-Predictions land in `predictions/<system>.<task>.jsonl`, keyed by order id, so when labels arrive scoring is a join rather than a re-run. Resumable; the local model runs at roughly 90 s/order on CPU. Predictions are never written to `labels/` and nothing in the labelling path reads them.
+Predictions land in `predictions/<system>.<task>.jsonl`, keyed by order id, so when labels arrive scoring is a join rather than a re-run. Resumable; the local model runs at roughly 80 s/order on CPU. Predictions are never written to `labels/` and nothing in the labelling path reads them.
+
+To score anything, labels have to be joined to order text — `evaluate` reads `data/splits/<split>/<task>.jsonl`, which carries both:
+
+```bash
+python scripts/build_eval_set.py --labels labels/t1.jsonl          # gold
+python scripts/build_eval_set.py --labels predictions/<system>.t1_extraction.jsonl   # silver
+```
+
+These files embed full order text and are gitignored for the same reason the corpus is: nothing here redistributes SEBI documents. Rebuild them locally.
+
+### Silver labels
+
+A model can label the corpus, and the harness will score against it, but it is marked and it is not a result:
+
+```
+!! NOT A BENCHMARK RESULT - labels came from model:ollama-llama3.2
+!! Silver labels exercise the harness. They do not measure a system.
+```
+
+Every silver example carries `label_source: "model:<system>"`, `RunResult` carries it into `--json`, and the report leads with the banner. Silver exists to exercise the pipeline and to give a human annotator something to correct. Where the labelling model and the system under test are the same model, the comparison measures nothing at all — the leaderboard stays gold-only.
 
 **No overall score is produced.** The tasks measure different things, and averaging them hides which one a system failed.
 

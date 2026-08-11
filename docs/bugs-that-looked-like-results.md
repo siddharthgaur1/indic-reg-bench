@@ -1,13 +1,13 @@
-# Five bugs that looked like results
+# Eight bugs that looked like results
 
 *Draft. Written against `indic-reg-bench` at commit `9c89173` and after. Numbers
 are reproducible from the repo; every one was measured, not estimated.*
 
 I am building a benchmark for Indian regulatory document understanding: 2,006
 SEBI adjudication orders, five tasks, a gold set that does not exist yet. In
-the course of getting it to the point where labelling could start, five bugs
+the course of getting it to the point where labelling could start, eight bugs
 turned up. What they have in common is that none of them threw an error at the
-moment they mattered, and all five would have produced a number I would have
+moment they mattered, and all but one would have produced a number I would have
 published.
 
 That is the interesting property. A crash is a bug you find. These are the
@@ -210,6 +210,61 @@ document.
 
 ---
 
+## 6. The scorer graded padding around a section, too
+
+Same defect as #4, one layer in. `score_extraction` folded `charging_section`
+with `.upper().replace(" ", "")`, so a real model answer
+
+    "15HA of the SEBI Act, 1992"  ->  "15HAOFTHESEBIACT,1992"
+
+missed against a gold of `15HA`. Systems write the section with its statute
+attached because that is how the order writes it.
+
+The instructive part is what happened next. My fix was
+
+```python
+re.compile(r"(15[A-Z]{1,2}(?:\s*\([a-z]\))?)", re.I)
+```
+
+and the trailing `` never matches after the `)` of `15A(a)`, because `)` and
+the space after it are both non-word characters. It silently truncated
+`15A(a)` to `15A` — merging two distinct sections of the SEBI Act into one
+label. I wrote that twenty minutes after writing section 4 of this post, and
+found it only because I had written the test first.
+
+## 7. Nothing turned labels into evaluation data
+
+`label.py` writes `labels/t1.jsonl`: the label and the order id, no text,
+deliberately, because this repo does not redistribute SEBI documents.
+`evaluate --data data/splits/test` reads `data/splits/test/<task>.jsonl`, which
+needs the text and the label together. `data/splits/` contained two id lists.
+No step joined them.
+
+So the gold set was not the only blocker. Had I hand-labelled 200 orders, I
+would have discovered at the end of it that there was no way to score them.
+
+**Why it would have published.** It would not have. This is the one honest
+crash in the list — and it is here because of *when* it would have fired: after
+the expensive, unrecoverable part. The cost of a missing piece is not its
+difficulty, it is how much work you do before you meet it.
+
+## 8. The fix for #7 was about to push order text to a public repo
+
+`build_eval_set.py` writes each order's complete text next to its label. That
+is what the evaluator needs. It is also precisely what the first line of this
+repo's `.gitignore` says is never redistributed from it.
+
+The file landed in `data/splits/test/`, which was not ignored. Every commit
+that day was staged with `git add -A`.
+
+**Why it would have published.** Literally. Not a wrong number — a licence
+problem, on a public repo, in the one direction the project had been careful
+about from the start. It was caught by checking `git check-ignore` before
+committing, which I only did because writing a file full of document text into
+a repo felt wrong. That is not a method.
+
+---
+
 ## What connects them
 
 Every one was found by running something rather than reading something.
@@ -221,6 +276,13 @@ Every one was found by running something rather than reading something.
   number.
 - The baseline bugs: by running it on real documents instead of a fixture that
   I had written to be clean.
+- The missing join and the licence leak: by trying to score something, which
+  nobody had done, because there was nothing to score.
+
+Two of the last three were introduced *by the fixes for the ones before them*,
+within an hour of my writing that this class of bug is hard to see. Knowing the
+failure mode does not confer immunity from it. Writing the test first is what
+caught both.
 
 Three of them had passing tests over the exact code involved. The tests
 were not wrong. They were checking the thing that was easy to check —
@@ -229,7 +291,7 @@ paragraph, `score_numeric()` counts matches correctly — while the defect lived
 one level up, in which inputs got selected, what the console could render, and
 what "match" meant.
 
-The uncomfortable version: I would have shipped all five, and every one of them
+The uncomfortable version: I would have shipped nearly all of them, and each
 would have come out as a number with a sensible story attached. The benchmark's
 headline claim — that naive first-amount extraction disagrees with the
 operative paragraph in 48.6% of orders — has survived two extraction bug fixes
