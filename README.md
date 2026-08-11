@@ -21,16 +21,21 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |
-| Gold set | ❌ 0 of a target 400–600 — but see below, that target no longer fits the pool |
+| Gold set | ❌ 0 of a target **200** |
 | Baseline scores | ❌ blocked on the gold set |
 
-**The 400–600 target predates the split fix and needs restating.** Labelling now
-draws from the test split by default, which holds 422 orders — 408 after
-corrigenda and scanned PDFs. So 600 is unreachable and 400 is a census of the
-test set, not a sample of it, leaving nothing unlabelled to grow into. Either
-the target comes down to a real sample (~150–200, still enough to separate
-systems on macro-F1) or the split moves earlier to widen the pool. Not yet
-decided; recorded here rather than discovered halfway through annotation.
+**The target was 400–600 and is now 200.** That number was set against the whole
+corpus, before labelling was restricted to the test split. Test holds 422
+orders — 408 after corrigenda and scanned PDFs — so 600 was unreachable and 400
+would have been a census of the test set rather than a sample of it, with
+nothing left unlabelled to grow into. 200 is roughly half the pool, enough to
+separate systems on macro-F1, and leaves room for a v1.1 expansion. The split
+itself is unchanged: the reasoning for cutting at 2023 is about leakage and
+deployment realism, and neither depends on how many orders get labelled.
+
+At the test split's natural bucket mix, 200 orders is ~130 prose, ~32
+table-scrambled and ~29 no-penalty. The 32 are the real cost — §3.2 requires
+reading those from the PDF — and they cluster in 2024 and 2026.
 
 **What the corpus already tells you, before any label exists** — measured over
 all 2,006 fetched documents, not assumed, and written up in

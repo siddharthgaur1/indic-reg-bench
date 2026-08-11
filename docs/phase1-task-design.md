@@ -224,6 +224,7 @@ The gold set is not the long pole. **The corpus is.**
 
 1. **Fix listing pagination** in `scrape.py` — SEBI drives paging through a `searchFormNewsList('n', <page>)` JS call, not a Next anchor. Needs the POST/param form reverse-engineered.
 2. **Decide crawl scope.** 400–600 gold examples needs ~1,500–2,000 fetched orders to stratify across year, order type and penalty magnitude, and to find enough multi-noticee orders (currently 3 in 25 ≈ 12%). At 1.5 s/request × 2 requests/order that is **~2 hours of crawling and several hundred MB.** Needs your go-ahead and a `--db` path outside the repo.
+   *(Done: 2,006 fetched. The 400–600 figure here is superseded — labelling was later restricted to the test split, which holds only 408 labellable orders, so the target is now 200. See the README.)*
 3. **Filter by document type.** The listing mixes corrigenda and settlement orders with adjudication orders. One corrigendum is already in the sample (1 page, 1,090 chars) — it has no penalty and would poison T1 as an unlabellable outlier. Adjudication orders only for v1.
 4. Then Phase 2: labelling CLI, annotation guidelines, gold set.
 
