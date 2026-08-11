@@ -296,3 +296,28 @@ def test_label_cli_survives_a_cp1252_console(tmp_path):
     )
     assert "UnicodeEncodeError" not in p.stderr, p.stderr[-600:]
     assert p.returncode == 0
+
+
+def test_labelling_queue_is_one_sequence_for_every_consumer():
+    """Predictions are joined to gold on `id`, so the queue must be stable.
+
+    label.py and run_baseline.py both walk this. If they drew separately -
+    two shuffles, two waste filters - a baseline's 200 predictions could cover
+    different documents than the 200 labels, and the join would still succeed
+    on whatever overlapped. Silent partial misalignment, not an error.
+    """
+    from label import DB, labelling_queue
+
+    if not DB.exists():
+        pytest.skip("needs the fetched corpus")
+
+    a = [r["url"] for r in labelling_queue(DB)]
+    b = [r["url"] for r in labelling_queue(DB)]
+    assert a == b, "queue is not deterministic"
+    assert len(set(a)) == len(a), "queue repeats an order"
+
+    # The split filter must not be a suggestion: the leaderboard scores test.
+    dates = [r["order_date"] for r in labelling_queue(DB)]
+    assert all(int(d[:4]) >= 2023 for d in dates)
+    assert all(int(r["order_date"][:4]) < 2023
+               for r in labelling_queue(DB, split="train"))

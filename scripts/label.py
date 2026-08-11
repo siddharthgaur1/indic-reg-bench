@@ -466,6 +466,54 @@ def label_t4(row: sqlite3.Row, notes: list[str], per_doc: int) -> dict | None:
     }
 
 
+def labelling_queue(db: Path, split: str = "test", keep_waste: bool = False,
+                    verbose: bool = False) -> list[sqlite3.Row]:
+    """The order the gold set gets labelled in.
+
+    One definition, because anything that needs to line up with the gold set -
+    a baseline's predictions, a progress count, a second annotator - has to
+    consume the *same* sequence. Two copies of this drift, and the drift shows
+    up as predictions silently scored against the wrong documents.
+    """
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT url, title, order_date, n_pages, text FROM order_text ORDER BY url").fetchall()
+    conn.close()
+
+    # Corrigenda and scanned PDFs carry no label and cost the same time to open
+    # as a real order. 46 of the first 1,107 fetched are one or the other.
+    if not keep_waste:
+        before = len(rows)
+        rows = [r for r in rows
+                if classify(r["title"], len(r["text"] or ""), r["text"]) not in WASTE]
+        if verbose and before != len(rows):
+            print(f"skipping {before - len(rows)} corrigenda / scanned PDFs "
+                  f"(--keep-waste to include)")
+
+    # SEBI URLs embed the month as a name (`/apr-2009/`, `/sep-2025/`), so
+    # `ORDER BY url` sorts alphabetically by month abbreviation. Taking the
+    # first N off that list gave 50 April orders from 2009-2014 — a gold set
+    # stratified by nothing except the spelling of "April". Shuffle with a
+    # fixed seed instead: reproducible, and the bucket mix comes out at corpus
+    # proportions rather than 2% "no penalty" against a true rate of 19%.
+    #
+    # Shuffle BEFORE removing already-labelled orders, so resuming a session
+    # continues the same sequence instead of re-drawing a different one.
+    random.Random(SEED).shuffle(rows)
+
+    # The leaderboard scores the test split. Drawing from the whole corpus puts
+    # ~77% of a hard-won gold set in train, where it grades nothing.
+    if split != "all":
+        want_test = split == "test"
+        rows = [r for r in rows if r["order_date"]
+                and (int(r["order_date"][:4]) >= TEST_FROM_YEAR) == want_test]
+        if verbose:
+            print(f"restricted to the {split} split "
+                  f"({'>=' if want_test else '<'}{TEST_FROM_YEAR}): {len(rows)} orders")
+    return rows
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="t1", choices=["t1", "t4", "t5"])
@@ -511,41 +559,8 @@ def main() -> int:
             print(f"decisions logged: {sum(1 for _ in DECISIONS.open(encoding='utf-8'))}")
         return 0
 
-    conn = sqlite3.connect(args.db)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT url, title, order_date, n_pages, text FROM order_text ORDER BY url").fetchall()
-    conn.close()
-
-    # Corrigenda and scanned PDFs carry no label and cost the same time to open
-    # as a real order. 46 of the first 1,107 fetched are one or the other.
-    if not args.keep_waste:
-        before = len(rows)
-        rows = [r for r in rows
-                if classify(r["title"], len(r["text"] or ""), r["text"]) not in WASTE]
-        if before != len(rows):
-            print(f"skipping {before - len(rows)} corrigenda / scanned PDFs "
-                  f"(--keep-waste to include)")
-
-    # SEBI URLs embed the month as a name (`/apr-2009/`, `/sep-2025/`), so
-    # `ORDER BY url` sorts alphabetically by month abbreviation. Taking the
-    # first N off that list gave 50 April orders from 2009-2014 — a gold set
-    # stratified by nothing except the spelling of "April". Shuffle with a
-    # fixed seed instead: reproducible, and the bucket mix comes out at corpus
-    # proportions rather than 2% "no penalty" against a true rate of 19%.
-    #
-    # Shuffle BEFORE removing already-labelled orders, so resuming a session
-    # continues the same sequence instead of re-drawing a different one.
-    random.Random(SEED).shuffle(rows)
-
-    # The leaderboard scores the test split. Drawing from the whole corpus puts
-    # ~77% of a hard-won gold set in train, where it grades nothing.
-    if args.split != "all":
-        want_test = args.split == "test"
-        rows = [r for r in rows if r["order_date"]
-                and (int(r["order_date"][:4]) >= TEST_FROM_YEAR) == want_test]
-        print(f"restricted to the {args.split} split "
-              f"({'>=' if want_test else '<'}{TEST_FROM_YEAR}): {len(rows)} orders")
+    rows = labelling_queue(args.db, split=args.split, keep_waste=args.keep_waste,
+                           verbose=True)
 
     # In --redo the point is to re-label what was already done, a week later.
     pool = [r for r in rows if (r["url"] in done) == bool(args.redo)]
