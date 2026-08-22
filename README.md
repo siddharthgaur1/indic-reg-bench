@@ -1,5 +1,7 @@
 # indic-reg-bench
 
+[![Portfolio](https://img.shields.io/badge/↩-siddharthgaur1-111827?style=flat-square)](https://github.com/siddharthgaur1)
+
 An open benchmark for Indian regulatory document understanding, built on SEBI enforcement orders.
 
 [![tests](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml/badge.svg)](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml)
