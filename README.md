@@ -4,6 +4,10 @@
 
 An open benchmark for Indian regulatory document understanding, built on SEBI enforcement orders.
 
+Related: [Sebi-Explorer](https://github.com/siddharthgaur1/Sebi-Explorer) is the analytics
+app over the same corpus — it charts and searches the orders; this repo measures how well
+systems *read* them.
+
 [![tests](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml/badge.svg)](https://github.com/siddharthgaur1/indic-reg-bench/actions/workflows/tests.yml)
 [![dataset](https://img.shields.io/badge/%F0%9F%A4%97%20dataset-indic--reg--bench-yellow)](https://huggingface.co/datasets/siddharthgaur/indic-reg-bench)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
