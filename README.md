@@ -13,6 +13,10 @@ systems *read* them.
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![status](https://img.shields.io/badge/status-under%20construction-orange)](#status)
 
+![SEBI enforcement orders per year: all 11,957 listed orders vs the 2,000-order benchmark sample](docs/orders-by-year.png)
+
+<sub>Order counts per year from the committed `release/listing.csv` and `release/benchmark_sample.csv` — counts only, no scores. Regenerate with `python scripts/make_readme_chart.py`.</sub>
+
 Every LLM evaluation suite for regulatory and financial documents is US/EU-centric: SEC filings, EDGAR, EU regulatory text. Indian regulatory language differs structurally — charging provisions under the SEBI Act, the PFUTP and PIT regulations, Indian digit grouping where `35,00,000` means 3.5 million, and penalty phrasing that matches no Western template.
 
 ## Status
