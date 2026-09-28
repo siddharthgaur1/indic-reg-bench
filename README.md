@@ -188,7 +188,7 @@ The LLM baseline runs on localhost, so it costs nothing and needs no key. It is 
 
 ### Submitting
 
-Open a PR with your `System` adapter, the harness output JSON, and a one-line description of the system. Results are reproduced before being merged.
+Open a PR with your `System` adapter, the harness output JSON, and a one-line description of the system. Results are reproduced before being merged. Details, including how to check an adapter before the gold set exists: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Documents
 
