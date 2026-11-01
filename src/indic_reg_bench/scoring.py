@@ -115,7 +115,7 @@ def score_extraction(pred: dict, gold: dict) -> dict[str, float]:
 def score_labels(pred: list[str], gold: list[str], label_set: list[str]) -> dict[str, float]:
     """Macro-F1 over a fixed label set.
 
-    Macro, not micro: the charging-section distribution is dominated by 15HB,
+    Macro, not micro: the charging-section distribution is dominated by 15HA,
     and micro-F1 would reward a system that always guesses the majority class.
     """
     per: dict[str, float] = {}
