@@ -49,8 +49,9 @@ class System:
 
         if task == "t2_charging_section":
             found = SECTION_RE.findall(text)
-            # most frequent mention, which is dominated by procedural citations
-            return Counter(s.upper() for s in found).most_common(1)[0][0] if found else "15HB"
+            # most frequent mention, which is dominated by procedural citations;
+            # with none, the corpus majority (15HA, 47.2% of label instances)
+            return Counter(s.upper() for s in found).most_common(1)[0][0] if found else "15HA"
 
         if task == "t3_numeric":
             return parse_amount(text)

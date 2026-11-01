@@ -22,6 +22,9 @@ measures agreement between two runs of the same thing, and where the labelling
 model and the system under test are the same model it measures nothing at all.
 Silver exists to exercise the pipeline and to give a human annotator something
 to correct - not to fill a leaderboard.
+
+**Assisted-verified is not gold either.** A person checked every row, but they
+started from a model's answer. It is allowed in train and refused in test.
 """
 
 from __future__ import annotations
@@ -39,7 +42,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from build_splits import TEST_FROM_YEAR  # noqa: E402
-from label import DB  # noqa: E402
+from label import ASSISTED, DB  # noqa: E402
 
 HUMAN = "human"
 
@@ -55,7 +58,9 @@ def read_records(path: Path) -> tuple[list[dict], str]:
         if any(r.get("label_source", HUMAN) != HUMAN for r in rows):
             source = next(r["label_source"] for r in rows
                           if r.get("label_source", HUMAN) != HUMAN)
-        return [{"id": r["id"], "gold": r["gold"], "source": r.get("label_source", source)}
+        return [{"id": r["id"], "gold": r["gold"],
+                 "source": ASSISTED if r.get("provenance") == ASSISTED
+                 else r.get("label_source", source)}
                 for r in rows], source
 
     if "prediction" in rows[0]:
@@ -70,6 +75,29 @@ def read_records(path: Path) -> tuple[list[dict], str]:
     raise SystemExit(f"{path}: records have neither 'gold' nor 'prediction'")
 
 
+def expand(task: str, gold: object) -> list[dict]:
+    """One example per scored item.
+
+    `label.py` stores T4 and T5 once per order, with several items inside. The
+    scorers compare one prediction with one answer, and a system needs to be
+    told which question or span it is answering. Without this every T4/T5 gold
+    was a stringified dict that no prediction could ever match.
+
+    `char_start` is an offset into the order text with whitespace collapsed, as
+    `label.py` saw it, and not into the raw `text` on the example.
+    """
+    nested = isinstance(gold, dict) and ("items" in gold or "spans" in gold)
+    if task == "t4_abstention" and nested and "items" in gold:
+        return [{"field": i["field"], "question": i["question"], "gold": i["gold_answer"]}
+                for i in gold["items"]]
+    if task == "t5_attribution" and nested and "spans" in gold:
+        return [{"span": s["span"], "char_start": s["char_start"], "gold": s["attribution"]}
+                for s in gold["spans"]]
+    if nested or (task in ("t4_abstention", "t5_attribution") and isinstance(gold, dict)):
+        raise SystemExit(f"--task {task} does not match these labels: check --task")
+    return [{"gold": gold}]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels", type=Path, required=True)
@@ -81,7 +109,7 @@ def main() -> int:
     args = ap.parse_args()
 
     records, source = read_records(args.labels)
-    print(f"{len(records)} labels from {args.labels}  (label_source: {source})")
+    print(f"{len(records)} labelled orders from {args.labels}  (label_source: {source})")
 
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
@@ -99,10 +127,13 @@ def main() -> int:
             continue
         text, order_date = text_by_id[r["id"]]
         split = "test" if int(order_date[:4]) >= TEST_FROM_YEAR else "train"
-        by_split[split].append({
-            "id": r["id"], "order_date": order_date, "text": text,
-            "gold": r["gold"], "label_source": r["source"],
-        })
+        if split == "test" and r["source"] == ASSISTED:
+            raise SystemExit(f"{r['id']}: assisted labels are never allowed in the test split")
+        for item in expand(args.task, r["gold"]):
+            by_split[split].append({
+                "id": r["id"], "order_date": order_date, "text": text,
+                "label_source": r["source"], **item,
+            })
 
     for split, rows in by_split.items():
         if not rows:

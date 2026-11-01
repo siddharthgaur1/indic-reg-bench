@@ -7,7 +7,7 @@ half that does not need gold: it runs the system over the *same* orders, in the
 *same* sequence, that `label.py` will serve, and appends each prediction to a
 JSONL keyed by order id.
 
-    python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 200
+    python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 150
 
 The point is alignment. When the gold set exists, prediction and label meet on
 `id`, and scoring is a join rather than a re-run - which for a local model is
@@ -50,7 +50,7 @@ def main() -> int:
     ap.add_argument("--task", default="t1_extraction")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--split", default="test", choices=["test", "train", "all"])
-    ap.add_argument("--limit", type=int, default=200,
+    ap.add_argument("--limit", type=int, default=150,
                     help="how far down the labelling queue to go (default: the "
                          "gold-set target, so predictions cover exactly the "
                          "orders that will have labels)")

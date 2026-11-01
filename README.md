@@ -31,29 +31,31 @@ Every LLM evaluation suite for regulatory and financial documents is US/EU-centr
 | Labelling CLI | ✅ T1, T4 and T5; triages each order and keeps corrigenda and scans out of the queue |
 | Benchmark sample | ✅ 2,000 orders selected (stratified by year, seed 42) |
 | Document text | ✅ 1,986 of 2,000 fetched, 70M characters, 2008–2026 |
-| Gold set | ❌ 0 of a target **200** |
+| Gold set | ❌ 0 of a target **150** |
 | Baselines | ✅ two implemented and runnable — regex floor, and a local LLM via Ollama (free, no key) |
 | Baseline scores | ❌ blocked on the gold set |
 
-**The target was 400–600 and is now 200.** That number was set against the whole
-corpus, before labelling was restricted to the test split. Test holds 422
-orders — 408 after corrigenda and scanned PDFs — so 600 was unreachable and 400
-would have been a census of the test set rather than a sample of it, with
-nothing left unlabelled to grow into. 200 is roughly half the pool, enough to
-separate systems on macro-F1, and leaves room for a v1.1 expansion. The split
-itself is unchanged: the reasoning for cutting at 2023 is about leakage and
-deployment realism, and neither depends on how many orders get labelled.
+**The target was 400–600, then 200, and is now 150.** The first figure was set
+against the whole corpus, before labelling was restricted to the test split. 150
+is a budget for one annotator, not a statistical result. If the median labelling
+time over the first 20 orders exceeds 15 minutes, the target drops to 100. The
+split itself is unchanged: the reasoning for cutting at 2023 is about leakage
+and deployment realism, and neither depends on how many orders get labelled.
 
-At the test split's natural bucket mix, 200 orders is ~130 prose, ~32
-table-scrambled and ~29 no-penalty. The 32 are the real cost — §3.2 requires
-reading those from the PDF — and they cluster in 2024 and 2026.
+**The gold set is a deliberate sample, not a uniform one.** One family of
+proceedings, the illiquid stock options orders, is 238 of the 422 test orders.
+[`scripts/build_test_queue.py`](scripts/build_test_queue.py) caps it at 25% of
+any prefix of the labelling queue and draws everything else round-robin across
+matters. Every result on this sample is reported with and without that family.
 
 **What the corpus already tells you, before any label exists** — measured over
 all 2,006 fetched documents, not assumed, and written up in
 [`docs/corpus-findings.md`](docs/corpus-findings.md):
 
-- A naive first-currency-amount extractor disagrees with the operative
-  paragraph in **48.6%** of orders (567 of 1,166 comparable). That gap is the
+- A naive first-currency-amount extractor disagrees with the regex-located
+  operative paragraph in **48.6%** of comparable orders (567 of 1,166). This
+  compares two heuristics on the orders where both find an amount; it is not an
+  error rate against gold, which does not exist yet. That gap is the
   benchmark's reason to exist, and it has held across an 80× increase in
   sample size — 24% at n=25, 47% at n=105, 49% at n=2,006 — and survived two
   bug fixes to the extraction that measures it.
@@ -90,7 +92,7 @@ Task design was derived from 25 real orders, then re-verified against all 2,006.
 
 1. **`Rs.` ends in a period.** Sentence splitters truncate the operative sentence immediately before the penalty amount.
 2. **Penalty tables are column-scrambled** by text extraction — the amount precedes the noticee number, which precedes the name. Nearest-neighbour association mis-attributes penalties.
-3. **Orders quote the noticee's own settlement pleas** in phrasing identical to the AO's ruling. The first currency amount differs from the operative one in **48.6%** of orders at full corpus scale (it was 6 of 25 in the pilot).
+3. **Orders quote the noticee's own settlement pleas** in phrasing identical to the AO's ruling. The first currency amount differs from the regex-located operative one in **48.6%** of comparable orders at full corpus scale (it was 6 of 25 in the pilot).
 4. **Two fields were cut for being regex-solvable** — `order_date` and `adjudicating_officer` both sit in a fixed signature block. If a regex solves it, it isn't a task.
 
 | Task | Input → Output | Metric |
@@ -144,7 +146,7 @@ Cost and latency are reported alongside accuracy. A system that wins by two poin
 **Before the gold set exists**, `evaluate` has nothing to score against. To run a system over real orders anyway — the same orders, in the same sequence, that `label.py` will serve — use:
 
 ```bash
-python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 200
+python scripts/run_baseline.py --system baselines/llm_baseline.py --limit 150
 ```
 
 Predictions land in `predictions/<system>.<task>.jsonl`, keyed by order id, so when labels arrive scoring is a join rather than a re-run. Resumable; the local model runs at roughly 80 s/order on CPU. Predictions are never written to `labels/` and nothing in the labelling path reads them.

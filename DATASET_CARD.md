@@ -39,7 +39,7 @@ recoverable by re-running the fetch script.
 
 | | |
 |---|---|
-| First currency amount ≠ the operative one | **48.6%** of comparable orders |
+| First currency amount ≠ the regex-located operative one (heuristic vs heuristic, not gold) | **48.6%** of comparable orders |
 | Orders imposing no monetary penalty | 18.3% |
 | Single-noticee orders with >1 penalty | 13.4% |
 | Rupee sign extracted as U+0060 backtick | 25% of orders; the *only* currency marker in 10.4% |
@@ -71,9 +71,26 @@ Consequences, stated plainly:
 - Noticee names are the *labels* for T1. A version with names removed would not be a usable extraction benchmark.
 - The current intention is to publish names, since they are already public in the source documents. **This decision is not yet final** and is flagged for the maintainer.
 - No attempt is made to enrich, cross-reference, or link these individuals to any other dataset, and doing so is out of scope.
-- A takedown contact will be published before any HuggingFace release.
+- **Takedown requests.** If you are named in this dataset, or act for someone who is, and want a record removed, email siddharthgaur200304@gmail.com with the order URL. I aim to respond within 14 days. The record is removed from the current and all future versions; earlier Hugging Face revisions may retain it unless history is rewritten. This dataset ships listing metadata and links, and the order itself stays on SEBI's site, so removal here does not affect SEBI's copy.
 
 This dataset must not be used to profile, score, or make decisions about the named individuals. It exists to measure document-understanding systems.
+
+## Which orders get labelled
+
+**The gold set is a deliberate sample of the test split, not a uniform one.**
+The illiquid stock options family is 238 of the 422 test orders.
+`scripts/build_test_queue.py` writes one seeded, ordered queue
+(`data/splits/test_queue_ids.json`) that caps the family at 25% of any prefix and
+draws other orders round-robin across matters. The target is 150 orders, or 100
+if the median labelling time over the first 20 exceeds 15 minutes.
+
+Scores on this sample do not describe the split's natural mix, so every result
+is reported with and without the family.
+
+**Train labels are a separate class.** Train-split labels may be model-assisted:
+an open model pre-fills them and a person verifies every row. Those carry
+`provenance: assisted_verified`, are refused in the test split, and never enter
+the gold set or leaderboard. Test labels are always from scratch.
 
 ## Known biases and limitations
 
@@ -81,7 +98,7 @@ This dataset must not be used to profile, score, or make decisions about the nam
 - **Extraction-heavy.** Four of five tasks reward locating and normalising text. Legal reasoning is barely tested.
 - **Single annotator.** Agreement will be reported as self-agreement across two passes a week apart. That is an upper bound on reliability: the same reader reproduces their own systematic misreadings and scores them as agreement.
 - **English only.** SEBI publishes in English; Indian-language regulatory text is untested.
-- **Class imbalance.** Charging sections are dominated by `15HB`; the pilot shows 27 mentions of `15HB` against 16 of `15HA` and 8–9 each of `15EA`/`15EB`. Macro-F1 and a published majority-class baseline are used for this reason.
+- **Class imbalance.** Charging sections are dominated by `15HA`, at 47.2% of label instances across the corpus. The 25-order pilot showed `15HB` ahead, and that reversed at scale. Macro-F1 and a published majority-class baseline are used for this reason.
 - **Multi-noticee orders are rare** — 3 of 25 in the pilot. They are the interesting case, so the sample deliberately oversamples them; the resulting distribution is *not* representative of SEBI's output and must not be read as such.
 - **Multi-hop is absent from v1.** Only 9 of 133 entities in the pilot recur across documents, and all 9 come from a single matter family. The task was cut rather than shipped degenerate.
 - **OCR/extraction noise is real.** Penalty tables are column-scrambled by text extraction; the annotation guidelines require labelling such orders from the source PDF.

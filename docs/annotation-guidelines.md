@@ -146,8 +146,12 @@ The last two are what make an unanswerable item hard: SEBI *does* order disgorge
 
 ## 5a. Which orders get labelled
 
-Not the ones that come first. `label.py` draws with `random.Random(42)` from the
-**test split** (2023+), which is what a leaderboard scores.
+Not the ones that come first. `label.py` walks the committed queue in
+`data/splits/test_queue_ids.json`, built with `random.Random(42)` by
+`scripts/build_test_queue.py` from the **test split** (2023+), which is what a
+leaderboard scores. It caps the illiquid stock options family at 25% of any
+prefix, and the dataset card declares that. Train and `all` still use the seeded
+shuffle described below.
 
 Both halves of that were wrong until the sampling frame was checked against the
 corpus, and the failure is worth recording because it was invisible:
@@ -161,8 +165,9 @@ corpus, and the failure is worth recording because it was invisible:
 - Drawing from the whole corpus rather than the test split would have put ~39 of
   50 labels in train, leaving ~11 to score against.
 
-Seeded shuffle over the test split gives all 12 months, all four test years, and
-bucket proportions within sampling noise of the split.
+Seeded shuffle over the test split gave all 12 months, all four test years, and
+bucket proportions within sampling noise of the split. The capped queue
+deliberately gives up the last of those.
 
 **Rule:** do not reorder, hand-pick, or skip forward to "more interesting"
 orders. The sequence is reproducible on purpose — a gold set chosen by what
@@ -185,6 +190,7 @@ deliberately top up a category, and say so in the dataset card when you do.
 ## 7. What must never happen
 
 - **No model-generated label enters the gold set.** Silver-set labels live in separate files, are marked `"source": "silver"`, and are never merged.
+- **No model-assisted label enters the gold set or the leaderboard.** Human-verified, model-assisted labels are allowed for the **train split only**: `label.py --prefill` shows a model's output, you decide on every row, and the record is stamped `provenance: assisted_verified`. Test labels are always from scratch. `label.py` refuses `--prefill` outside train, and `build_eval_set.py` refuses an assisted label dated in test. A verified label can still inherit the model's mistakes, so report a scratch-vs-assisted comparison on 20 train orders, as a sanity check rather than a measurement.
 - **No label inferred from the title.** Read the order.
 - **No amount typed from memory.** Copy it from the text.
 - **No skipped `note` on an ambiguous call.** The notes are what makes this document grow, and this document is the most defensible artifact in the project.
