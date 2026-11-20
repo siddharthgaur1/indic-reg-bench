@@ -8,9 +8,15 @@ label toward whatever the regex found, which is the exact failure the benchmark
 exists to measure. Candidate spans are shown as *context to read*, never as a
 default to accept.
 
+The one exception is `--prefill`, for train-split T1 only: it shows a model's
+output for you to verify row by row, and the label is stamped
+`assisted_verified`. The test split is always labelled from scratch. See
+docs/annotation-guidelines.md section 7.
+
     python scripts/label.py --task t1                 # label extraction
     python scripts/label.py --task t1 --redo          # second pass, for agreement
-    python scripts/label.py --stats
+    python scripts/label.py --task t1 --split train --prefill predictions/<system>.t1_extraction.jsonl
+    python scripts/label.py --stats                   # counts, and time per order
 
 Every decision is appended to `labels/decisions.jsonl` (never rewritten), so the
 annotation guidelines can be reconstructed from what actually happened.
@@ -23,8 +29,10 @@ import json
 import random
 import re
 import sqlite3
+import statistics
 import sys
 import textwrap
+import time
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +54,7 @@ if hasattr(sys.stdout, "reconfigure"):
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from indic_reg_bench.numerals import CURRENCY  # noqa: E402
 from build_splits import SEED, TEST_FROM_YEAR  # noqa: E402
+from build_test_queue import TEST_QUEUE  # noqa: E402
 from task_viability import (  # noqa: E402
     NONE_IMPOSED, PROSE, TABLE, UNCLASSIFIED, WASTE, classify,
 )
@@ -57,6 +66,12 @@ DECISIONS = LABELS / "decisions.jsonl"
 # Scratch copies of order text for the labeller to search. Order text is not
 # redistributed from this repo, so this directory is gitignored.
 READING = LABELS / ".reading"
+
+SCRATCH, ASSISTED = "scratch", "assisted_verified"
+
+# The time-box on the test set: if the median over the first 20 scratch labels
+# exceeds this, the gold-set target drops from 150 to 100.
+TIMEBOX_ORDERS, TIMEBOX_MINUTES = 20, 15
 
 # What each bucket means for the person reading the document. Shown as a banner
 # so nobody spends ten minutes hunting for a penalty in an order that imposes
@@ -160,7 +175,40 @@ def ask(prompt: str, allow_empty: bool = True) -> str:
     return v
 
 
-def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
+def triple(name: str, pen: str, sec: str) -> dict:
+    """One (noticee, penalty, section) row from what the labeller typed."""
+    return {
+        "name": name,
+        "penalty_inr": None if pen in ("", "-") else int(re.sub(r"[^\d]", "", pen) or 0),
+        "charging_section": None if sec in ("", "-") else sec.upper(),
+    }
+
+
+def ask_triple(name: str) -> dict:
+    pen = ask("  penalty in rupees, digits only (- if none)")
+    sec = ask("  charging section e.g. 15HB (- if none)")
+    return triple(name, pen, sec)
+
+
+def verify_prefill(prefill: dict) -> list[dict]:
+    """Walk a model's rows one at a time. Every row takes a decision."""
+    print("  model output below - check each row against the order, not the window alone")
+    kept = []
+    for row in prefill.get("noticees") or []:
+        name, pen, sec = (row.get(k) for k in ("name", "penalty_inr", "charging_section"))
+        print(f"  pre-filled: {name} | {pen} | {sec}")
+        action = ask("[enter]=correct  e=edit  d=delete").lower()[:1]
+        if action == "d":
+            continue
+        if action == "e":
+            kept.append(ask_triple(ask("  noticee name", allow_empty=False)))
+        else:
+            kept.append(triple(str(name or ""), "-" if pen is None else str(pen),
+                               "-" if sec is None else str(sec)))
+    return kept
+
+
+def label_t1(row: sqlite3.Row, notes: list[str], prefill: dict | None = None) -> dict | None:
     """Structured extraction. Noticee-by-noticee, so multi-party orders are
     labelled as the linked triples they are rather than three flat lists."""
     print("\n" + "=" * 78)
@@ -176,7 +224,7 @@ def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
         for line in textwrap.wrap(guidance, 74):
             print(f"     {line}")
 
-    print("\n--- operative window (read it; nothing below is pre-filled) ---")
+    print(f"\n--- operative window (read it; {'model rows follow' if prefill else 'nothing below is pre-filled'}) ---")
     print(operative_window(row["text"], bucket))
     print("--- end window ---\n")
 
@@ -192,22 +240,24 @@ def label_t1(row: sqlite3.Row, notes: list[str]) -> dict | None:
     # name, and the prompt has to say so or they get silently collapsed to one.
     print("  one row per (noticee, penalty, section) triple - enter the same")
     print("  name again if the order penalises them under more than one section")
-    noticees = []
+    noticees = verify_prefill(prefill) if prefill else []
     while True:
         n = len(noticees) + 1
         name = ask(f"noticee {n} name (blank=done)")
         if not name:
             break
-        pen = ask(f"  penalty in rupees, digits only (- if none)")
-        sec = ask(f"  charging section e.g. 15HB (- if none)")
-        noticees.append({
-            "name": name,
-            "penalty_inr": None if pen in ("", "-") else int(re.sub(r"[^\d]", "", pen) or 0),
-            "charging_section": None if sec in ("", "-") else sec.upper(),
-        })
+        noticees.append(ask_triple(name))
 
-    provisions = [p.strip() for p in ask("violated provisions, comma-separated").split(",") if p.strip()]
-    ptype = ask("penalty type [monetary/debarment/warning/none/other]")
+    if prefill:
+        print(f"  pre-filled provisions: {prefill.get('violated_provisions')}")
+        print(f"  pre-filled penalty type: {prefill.get('penalty_type')}")
+    typed = ask("violated provisions, comma-separated" + (" (blank=keep)" if prefill else ""))
+    provisions = [p.strip() for p in typed.split(",") if p.strip()]
+    if prefill and not typed:
+        provisions = list(prefill.get("violated_provisions") or [])
+    ptype = ask("penalty type [monetary/debarment/warning/none/other]" + (" (blank=keep)" if prefill else ""))
+    if prefill and not ptype:
+        ptype = prefill.get("penalty_type") or ""
     note = ask("note - ambiguity and how you resolved it (blank=none)")
     if note:
         notes.append(f"{row['url']}: {note}")
@@ -502,6 +552,13 @@ def labelling_queue(db: Path, split: str = "test", keep_waste: bool = False,
     # continues the same sequence instead of re-drawing a different one.
     random.Random(SEED).shuffle(rows)
 
+    # The test split follows the committed queue instead: capped by matter
+    # family, see build_test_queue.py. Same list for every consumer, so a
+    # baseline's predictions still line up with the labels.
+    if split == "test" and TEST_QUEUE.exists():
+        position = {u: i for i, u in enumerate(json.loads(TEST_QUEUE.read_text(encoding="utf-8")))}
+        rows = sorted((r for r in rows if r["url"] in position), key=lambda r: position[r["url"]])
+
     # The leaderboard scores the test split. Drawing from the whole corpus puts
     # ~77% of a hard-won gold set in train, where it grades nothing.
     if split != "all":
@@ -512,6 +569,36 @@ def labelling_queue(db: Path, split: str = "test", keep_waste: bool = False,
             print(f"restricted to the {split} split "
                   f"({'>=' if want_test else '<'}{TEST_FROM_YEAR}): {len(rows)} orders")
     return rows
+
+
+def timing_summary(records: list[dict]) -> dict | None:
+    """Median minutes per order, overall and over the time-box window.
+
+    Label-file order is the order they were labelled in, so "first 20" is real.
+    Only scratch labels on the test split count: that is what the time-box is
+    about, and scratch train labels for the anchoring check share this file.
+    """
+    seconds = [r["seconds"] for r in records
+               if r.get("seconds") is not None and r.get("provenance") == SCRATCH
+               and int(r["order_date"][:4]) >= TEST_FROM_YEAR]
+    if not seconds:
+        return None
+    first = seconds[:TIMEBOX_ORDERS]
+    median_first = statistics.median(first) / 60
+    return {
+        "n": len(seconds),
+        "median_min": round(statistics.median(seconds) / 60, 1),
+        "first_n": len(first),
+        "first_median_min": round(median_first, 1),
+        "cut_target_to_100": len(first) == TIMEBOX_ORDERS and median_first > TIMEBOX_MINUTES,
+    }
+
+
+def load_prefill(path: Path) -> dict[str, dict]:
+    """Rows a model got an answer for, from a `run_baseline.py` predictions file."""
+    rows = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return {r["id"]: r["prediction"] for r in rows
+            if not r.get("error") and isinstance(r.get("prediction"), dict)}
 
 
 def main() -> int:
@@ -534,10 +621,18 @@ def main() -> int:
                     help="t5 only: currency spans to attribute per order")
     ap.add_argument("--questions-per-doc", type=int, default=3,
                     help="t4 only: questions to ask per order")
+    ap.add_argument("--prefill", type=Path, default=None,
+                    help="train-split T1 only: predictions file to verify row by "
+                         "row. Writes <task>_assisted.jsonl, never the gold set")
     ap.add_argument("--dry-run", action="store_true",
                     help="exercise the interface without writing any label - "
                          "use this for every smoke test")
     args = ap.parse_args()
+
+    # Pre-filling the test split would anchor the labels every system is scored
+    # against on one model's answers.
+    if args.prefill and (args.split != "train" or args.task != "t1" or args.redo):
+        ap.error("--prefill is only allowed with --split train --task t1, without --redo")
 
     global DRY_RUN
     DRY_RUN = args.dry_run
@@ -548,7 +643,9 @@ def main() -> int:
         print(f"no corpus at {args.db} - run scripts/fetch_orders.py first", file=sys.stderr)
         return 1
 
-    out_path = LABELS / (f"{args.task}_pass2.jsonl" if args.redo else f"{args.task}.jsonl")
+    out_path = LABELS / (f"{args.task}_pass2.jsonl" if args.redo
+                         else f"{args.task}_assisted.jsonl" if args.prefill
+                         else f"{args.task}.jsonl")
     done = set()
     if out_path.exists():
         done = {json.loads(l)["id"] for l in out_path.read_text(encoding="utf-8").splitlines() if l.strip()}
@@ -557,6 +654,14 @@ def main() -> int:
         print(f"{args.task}: {len(done)} labelled -> {out_path}")
         if DECISIONS.exists():
             print(f"decisions logged: {sum(1 for _ in DECISIONS.open(encoding='utf-8'))}")
+        if out_path.exists():
+            t = timing_summary([json.loads(l) for l in out_path.read_text(
+                encoding="utf-8").splitlines() if l.strip()])
+            if t:
+                print(f"time per order: median {t['median_min']} min over {t['n']}; "
+                      f"first {t['first_n']}: median {t['first_median_min']} min")
+                if t["cut_target_to_100"]:
+                    print(f"time-box hit (over {TIMEBOX_MINUTES} min): cut the test target to 100")
         return 0
 
     rows = labelling_queue(args.db, split=args.split, keep_waste=args.keep_waste,
@@ -568,6 +673,10 @@ def main() -> int:
         first = {json.loads(l)["id"] for l in (LABELS / f"{args.task}.jsonl").read_text(
             encoding="utf-8").splitlines() if l.strip()} if (LABELS / f"{args.task}.jsonl").exists() else set()
         pool = [r for r in rows if r["url"] in first and r["url"] not in done]
+
+    prefills = load_prefill(args.prefill) if args.prefill else {}
+    if args.prefill:
+        pool = [r for r in pool if r["url"] in prefills]
 
     if args.bucket:
         pool = [r for r in pool
@@ -585,11 +694,12 @@ def main() -> int:
     written = 0
 
     labellers = {
-        "t1": lambda r: label_t1(r, notes),
+        "t1": lambda r: label_t1(r, notes, prefills.get(r["url"])),
         "t4": lambda r: label_t4(r, notes, args.questions_per_doc),
         "t5": lambda r: label_t5(r, notes, args.spans_per_doc),
     }
     for row in pool[: args.limit]:
+        started = time.perf_counter()
         rec = labellers[args.task](row)
         if rec == "QUIT":
             break
@@ -597,13 +707,16 @@ def main() -> int:
             log_decision({"ts": datetime.now(timezone.utc).isoformat(),
                           "id": row["url"], "action": "skip"})
             continue
+        rec["provenance"] = ASSISTED if args.prefill else SCRATCH
+        rec["seconds"] = round(time.perf_counter() - started, 1)
         if not DRY_RUN:
             LABELS.mkdir(parents=True, exist_ok=True)
             with out_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         log_decision({"ts": datetime.now(timezone.utc).isoformat(), "id": row["url"],
                       "action": "label", "pass": 2 if args.redo else 1, "gold": rec["gold"],
-                      "note": rec["note"]})
+                      "note": rec["note"], "provenance": rec["provenance"],
+                      "seconds": rec["seconds"], "prefill": prefills.get(row["url"])})
         written += 1
 
     print(f"\n{written} labelled this session -> {out_path}")

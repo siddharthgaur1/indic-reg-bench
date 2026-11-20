@@ -2,7 +2,7 @@
 
 ## Read this first: there is no gold set yet
 
-The gold set is **0 of a target 200** orders (see [Status](README.md#status)).
+The gold set is **0 of a target 150** orders (see [Status](README.md#status)).
 Until it exists, `indic-reg-bench evaluate` has nothing real to score against,
 the leaderboard is empty, and no system — including the two baselines — has a
 score. A system PR can be reviewed and its adapter checked now; its numbers
@@ -52,7 +52,7 @@ Before the gold set exists, you can still run a system over the exact orders
 that will be labelled, so scoring later is a join rather than a re-run:
 
 ```bash
-python scripts/run_baseline.py --system path/to/your_system.py --task t1_extraction --limit 200
+python scripts/run_baseline.py --system path/to/your_system.py --task t1_extraction --limit 150
 ```
 
 One task per run (`--task`, default `t1_extraction`); output goes to

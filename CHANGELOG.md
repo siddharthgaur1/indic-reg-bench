@@ -2,6 +2,14 @@
 
 All notable changes to indic-reg-bench, grouped by work period. Commit hashes refer to `siddharthgaur1/indic-reg-bench`.
 
+## 2026-11-01 — Labelling workflow and T4/T5 eval rows
+
+- `build_eval_set.py` now writes one row per T4 question and T5 span. Before this, T4/T5 gold could not be scored at all.
+- Test labelling follows a committed queue that caps the illiquid stock options family at 25% (`scripts/build_test_queue.py`). The gold-set target moves from 200 to 150, or 100 under a time-box. The committed `predictions/` files follow the old queue, so they only partly overlap it and need re-running before scoring.
+- `label.py` records provenance and seconds per order, and `--prefill` allows human-verified, model-assisted labels on train T1 only.
+- The regex baseline's T2 fallback is now `15HA`, the corpus majority, not `15HB`.
+- The 48.6% figure is now described as disagreement with a regex-located operative paragraph, not as an error rate.
+
 ## 2026-08-28 — Baseline run complete
 
 - Completed the llama3.2 baseline run over the full 200-order labelling queue (`ab38e69`).
